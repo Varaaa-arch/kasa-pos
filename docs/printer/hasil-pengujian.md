@@ -140,3 +140,30 @@ tidak memiliki automatic paper cutter.
 Aplikasi KASA tidak akan bergantung pada fitur automatic
 paper cut. Receipt akan melakukan paper feed secukupnya
 sehingga pengguna dapat merobek kertas secara manual.
+
+
+## Barcode Test
+
+### Method
+
+Printer diuji menggunakan ESC/POS barcode command
+`GS k` dengan barcode CODE39.
+
+Data yang digunakan:
+
+`KASA001`
+
+### Result
+
+Barcode berhasil dicetak oleh printer.
+
+Barcode dapat digunakan sebagai output barcode
+untuk kebutuhan POS.
+
+### Conclusion
+
+BP-LITE58 mendukung pencetakan barcode melalui
+ESC/POS.
+
+CODE39 berhasil diuji dan dapat digunakan sebagai
+baseline untuk pengembangan barcode printer KASA.
