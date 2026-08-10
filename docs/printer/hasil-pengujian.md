@@ -119,3 +119,24 @@ Bayar                                 Rp 50.000
 Kembali                                Rp 3.000
 ------------------------------------------------
                  TERIMA KASIH
+```
+
+## Paper Cut Test
+
+### Method
+
+Mengirim ESC/POS `GS V 0` untuk menguji automatic paper cut.
+
+### Result
+
+Printer melakukan paper feed, tetapi tidak melakukan
+pemotongan otomatis.
+
+### Conclusion
+
+BP-LITE58 menggunakan mekanisme **manual tear-off** dan
+tidak memiliki automatic paper cutter.
+
+Aplikasi KASA tidak akan bergantung pada fitur automatic
+paper cut. Receipt akan melakukan paper feed secukupnya
+sehingga pengguna dapat merobek kertas secara manual.
