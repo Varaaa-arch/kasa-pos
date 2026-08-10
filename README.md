@@ -171,21 +171,6 @@ The interesting part begins when the transaction has to leave the screen:
 └────────────────────────────────────┘
 ```
 
-### Hardware Research
-
-Status:
-
-```text
-[✓] Printer identified
-[ ] USB VID/PID confirmed
-[ ] Linux driver identified
-[ ] Device node identified
-[ ] USB interface identified
-[ ] Communication method confirmed
-[ ] ESC/POS commands validated
-[ ] First print completed
-```
-
 > **Important:** KASA tidak mengasumsikan bagaimana printer bekerja hanya berdasarkan spesifikasi. Jalur USB akan ditentukan berdasarkan hasil eksperimen pada device sebenarnya.
 
 Research:
