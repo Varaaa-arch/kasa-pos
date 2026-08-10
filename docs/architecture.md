@@ -1,47 +1,44 @@
-# System Architecture
+# 🏗️ System Architecture
+
+> **Status:** Draft — arsitektur awal, belum final.
+> Struktur ini kemungkinan besar akan berubah setelah riset USB terhadap **BP-LITE58** selesai (lihat `docs/printer/usb-research.md`).
+
+---
 
 ## Planned Architecture
 
-POS Web
-    |
-    | HTTP
-    v
-Go API
-    |
-    v
-PostgreSQL
+### Transaction Flow
 
+```
+┌────────────┐        HTTP        ┌────────────┐        ┌────────────┐
+│  POS Web   │ ─────────────────► │   Go API   │ ─────► │ PostgreSQL │
+└────────────┘                    └────────────┘        └────────────┘
+```
 
-POS Web
-    |
-    | localhost
-    v
-Go Print Agent
-    |
-    | USB
-    v
-BLUEPRINT BP-LITE58
+### Print Flow
+
+```
+┌────────────┐     localhost     ┌────────────────┐     USB     ┌──────────────────┐
+│  POS Web   │ ────────────────► │ Go Print Agent  │ ──────────► │ BLUEPRINT BP-LITE58 │
+└────────────┘                   └────────────────┘             └──────────────────┘
+```
+
+---
 
 ## Components
 
-### POS Web
+| Component | Deskripsi |
+|---|---|
+| **POS Web** | Frontend yang digunakan kasir untuk melakukan transaksi. |
+| **Go API** | Backend yang menangani business logic dan transaksi. |
+| **PostgreSQL** | Database utama aplikasi POS. |
+| **Go Print Agent** | Local service yang menangani komunikasi antara POS dengan thermal printer. |
+| **BP-LITE58** | Thermal receipt printer yang digunakan untuk mencetak struk transaksi. |
 
-Frontend yang digunakan kasir untuk melakukan transaksi.
+---
 
-### Go API
+## Catatan
 
-Backend yang menangani business logic dan transaksi.
+Ini **hanya arsitektur awal**. Detail komunikasi USB, protokol printer, dan struktur `Go Print Agent` **masih bisa berubah total** setelah kita mengetahui bagaimana **BP-LITE58** benar-benar berkomunikasi melalui USB.
 
-### PostgreSQL
-
-Database utama aplikasi POS.
-
-### Go Print Agent
-
-Local service yang menangani komunikasi
-antara POS dengan thermal printer.
-
-### BP-LITE58
-
-Thermal receipt printer yang digunakan
-untuk mencetak struk transaksi.
+Jangan anggap dokumen ini final — treat as living document. 
