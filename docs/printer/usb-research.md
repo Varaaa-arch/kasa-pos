@@ -21,7 +21,13 @@ lsusb
 
 Result:
 
-TBD
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 003 Device 002: ID 3151:3020 YICHIP Wireless Device
+Bus 003 Device 003: ID 13d3:5439 IMC Networks Integrated Camera
+Bus 003 Device 004: ID 8087:0032 Intel Corp. AX210 Bluetooth
+Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
 
 ### After Printer Connected
 

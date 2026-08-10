@@ -1,92 +1,121 @@
 # Hasil Pengujian Printer
 
-Printer: BLUEPRINT BP-LITE58
+## 1. Informasi Eksperimen
+
+- Project: POS System
+- Komponen: Receipt Prototype
+- Bahasa: Go
+- Printer target: Blueprint BP-LITE58
+- Printer interface: USB
+- Printer protocol: ESC/POS
+- Receipt width: 48 karakter
+- Status koneksi printer: Belum diuji
+- Status kabel USB-B: Belum tersedia
 
 ---
 
-## Test 01 — USB Detection
+## 2. Tujuan Pengujian
 
-Status: ⬜ Belum diuji
+Eksperimen ini bertujuan untuk memastikan bahwa sistem POS dapat menghasilkan
+format struk yang terstruktur sebelum dihubungkan secara langsung dengan
+printer thermal BP-LITE58.
 
-### Tujuan
+Fokus pengujian pada tahap ini adalah:
 
-Memastikan Fedora dapat mendeteksi printer
-ketika terhubung melalui USB.
-
-### Command
-
-lsusb
-
-### Result
-
-TBD
-
----
-
-## Test 02 — Linux Driver
-
-Status: ⬜ Belum diuji
-
-### Tujuan
-
-Mengetahui driver yang digunakan Fedora
-untuk printer.
-
-### Command
-
-lsusb -t
-
-### Result
-
-TBD
+1. Membuat model data transaksi.
+2. Menghasilkan format struk menggunakan Go.
+3. Mengatur alignment teks.
+4. Mengatur format harga Rupiah.
+5. Mengatur layout item dan subtotal.
+6. Menghasilkan total transaksi.
+7. Menghasilkan informasi pembayaran dan kembalian.
+8. Menghasilkan footer struk.
 
 ---
 
-## Test 03 — Device Node
+## 3. Data Transaksi Pengujian
 
-Status: ⬜ Belum diuji
+### Store
 
-### Tujuan
+- Name: TOKO KASA
+- Address: Jl. Contoh No. 123
+- Phone: 081234567890
 
-Mengetahui device node yang digunakan Linux
-untuk mengakses printer.
+### Transaction
 
-### Command
+- Invoice: INV-000001
+- Timestamp: 10/08/2026 19:00:00
+- Cashier: Bizar
 
-ls -la /dev/usb/ /dev/lp* /dev/tty* 2>/dev/null
+### Items
 
-### Result
+| Item | Quantity | Unit Price | Subtotal |
+|---|---:|---:|---:|
+| Kopi Susu | 2 | Rp 15.000 | Rp 30.000 |
+| Roti Bakar | 1 | Rp 12.000 | Rp 12.000 |
+| Air Mineral | 1 | Rp 5.000 | Rp 5.000 |
 
-TBD
+### Summary
+
+- Subtotal: Rp 47.000
+- Discount: Rp 0
+- Tax: Rp 0
+- Service Charge: Rp 0
+- Total: Rp 47.000
+
+### Payment
+
+- Method: CASH
+- Paid: Rp 50.000
+- Change: Rp 3.000
 
 ---
 
-## Test 04 — First Print
+## 4. Hasil Pengujian
 
-Status: ⬜ Belum diuji
+Prototype berhasil menghasilkan output struk melalui terminal.
 
-### Tujuan
+Output berhasil menampilkan:
 
-Mencetak teks sederhana melalui BP-LITE58.
+- Nama toko
+- Alamat toko
+- Nomor telepon
+- Nomor invoice
+- Waktu transaksi
+- Nama kasir
+- Daftar barang
+- Quantity
+- Harga satuan
+- Subtotal item
+- Subtotal transaksi
+- Total transaksi
+- Jumlah pembayaran
+- Kembalian
+- Footer
 
-### Expected
+Contoh output:
 
-HELLO WORLD
+```text
+                 TOKO KASA
+             Jl. Contoh No. 123
+               081234567890
+================================================
 
-### Actual
+Invoice: INV-000001
+10/08/2026 19:00:00
+Kasir: Bizar
 
-TBD
-
----
-
-## Test 05 — ESC/POS
-
-Status: ⬜ Belum diuji
-
-### Tujuan
-
-Memastikan printer menerima command ESC/POS.
-
-### Result
-
-TBD
+Kopi Susu
+2 x Rp 15.000                         Rp 30.000
+Roti Bakar
+1 x Rp 12.000                         Rp 12.000
+Air Mineral
+1 x Rp 5.000                           Rp 5.000
+------------------------------------------------
+Subtotal                              Rp 47.000
+TOTAL                                 Rp 47.000
+------------------------------------------------
+Bayar                                 Rp 50.000
+Kembali                                Rp 3.000
+------------------------------------------------
+                 TERIMA KASIH
