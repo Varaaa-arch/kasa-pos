@@ -20,3 +20,13 @@ func TestWriteWithoutOpen(t *testing.T) {
 		t.Fatal("expected error when printer is not open")
 	}
 }
+
+func TestUSBPrinterImplementsPrinter(t *testing.T) {
+	var printer Printer
+
+	printer = NewUSBPrinter("/dev/usb/lp0")
+
+	if printer == nil {
+		t.Fatal("expected printer implementation")
+	}
+}
