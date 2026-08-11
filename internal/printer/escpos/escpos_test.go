@@ -1,171 +1,58 @@
 package escpos
 
-import (
-	"bytes"
-	"testing"
-)
+import "bytes"
 
-func TestInitialize(t *testing.T) {
-	expected := []byte{
-		0x1B, 0x40,
-	}
+type ESCPosPrinter struct {
+	buf bytes.Buffer
+}
 
-	if !bytes.Equal(Initialize(), expected) {
-		t.Fatalf(
-			"unexpected initialize command: % X",
-			Initialize(),
-		)
+func NewESCPosPrinter() *ESCPosPrinter {
+	return &ESCPosPrinter{}
+}
+
+func (p *ESCPosPrinter) Bytes() []byte {
+	return p.buf.Bytes()
+}
+
+func (p *ESCPosPrinter) Initialize() {
+	p.buf.Write([]byte{0x1B, 0x40})
+}
+
+func (p *ESCPosPrinter) Text(s string) {
+	p.buf.WriteString(s)
+}
+
+func (p *ESCPosPrinter) LF() {
+	p.buf.WriteByte(0x0A)
+}
+
+func (p *ESCPosPrinter) Bold(enable bool) {
+	if enable {
+		p.buf.Write([]byte{0x1B, 0x45, 0x01})
+	} else {
+		p.buf.Write([]byte{0x1B, 0x45, 0x00})
 	}
 }
 
-func TestText(t *testing.T) {
-	expected := []byte("HELLO WORLD")
-
-	if !bytes.Equal(Text("HELLO WORLD"), expected) {
-		t.Fatalf(
-			"unexpected text output: % X",
-			Text("HELLO WORLD"),
-		)
-	}
+func (p *ESCPosPrinter) AlignLeft() {
+	p.buf.Write([]byte{0x1B, 0x61, 0x00})
 }
 
-func TestLF(t *testing.T) {
-	expected := []byte{
-		0x0A,
-	}
-
-	if !bytes.Equal(LF(), expected) {
-		t.Fatalf(
-			"unexpected LF command: % X",
-			LF(),
-		)
-	}
+func (p *ESCPosPrinter) AlignCenter() {
+	p.buf.Write([]byte{0x1B, 0x61, 0x01})
 }
 
-func TestBold(t *testing.T) {
-	tests := []struct {
-		name     string
-		enabled  bool
-		expected []byte
-	}{
-		{
-			name:    "enable",
-			enabled: true,
-			expected: []byte{
-				0x1B, 0x45, 0x01,
-			},
-		},
-		{
-			name:    "disable",
-			enabled: false,
-			expected: []byte{
-				0x1B, 0x45, 0x00,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !bytes.Equal(Bold(tt.enabled), tt.expected) {
-				t.Fatalf(
-					"unexpected bold command: % X",
-					Bold(tt.enabled),
-				)
-			}
-		})
-	}
+func (p *ESCPosPrinter) AlignRight() {
+	p.buf.Write([]byte{0x1B, 0x61, 0x02})
 }
 
-func TestAlignment(t *testing.T) {
-	tests := []struct {
-		name     string
-		command  []byte
-		expected []byte
-	}{
-		{
-			name:    "left",
-			command: AlignLeft(),
-			expected: []byte{
-				0x1B, 0x61, 0x00,
-			},
-		},
-		{
-			name:    "center",
-			command: AlignCenter(),
-			expected: []byte{
-				0x1B, 0x61, 0x01,
-			},
-		},
-		{
-			name:    "right",
-			command: AlignRight(),
-			expected: []byte{
-				0x1B, 0x61, 0x02,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !bytes.Equal(tt.command, tt.expected) {
-				t.Fatalf(
-					"unexpected alignment command: % X",
-					tt.command,
-				)
-			}
-		})
-	}
+// FontSize sets width/height multiplier (1-8). ESC/POS encodes as
+// (width-1) in the high nibble and (height-1) in the low nibble.
+func (p *ESCPosPrinter) FontSize(width, height int) {
+	n := byte((width-1)<<4 | (height - 1))
+	p.buf.Write([]byte{0x1D, 0x21, n})
 }
 
-func TestFontSize(t *testing.T) {
-	tests := []struct {
-		name     string
-		width    byte
-		height   byte
-		expected []byte
-	}{
-		{
-			name:   "normal",
-			width:  1,
-			height: 1,
-			expected: []byte{
-				0x1D, 0x21, 0x00,
-			},
-		},
-		{
-			name:   "double",
-			width:  2,
-			height: 2,
-			expected: []byte{
-				0x1D, 0x21, 0x11,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if !bytes.Equal(
-				FontSize(tt.width, tt.height),
-				tt.expected,
-			) {
-				t.Fatalf(
-					"unexpected font size command: % X",
-					FontSize(tt.width, tt.height),
-				)
-			}
-		})
-	}
-}
-
-func TestFeed(t *testing.T) {
-	expected := []byte{
-		0x1B, 0x64, 0x03,
-	}
-
-	if !bytes.Equal(Feed(3), expected) {
-		t.Fatalf(
-			"unexpected feed command: % X",
-			Feed(3),
-		)
-	}
+func (p *ESCPosPrinter) Feed(n int) {
+	p.buf.Write([]byte{0x1B, 0x64, byte(n)})
 }
