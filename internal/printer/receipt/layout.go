@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const ReceiptWidth = 48
+const ReceiptWidth = 32
 
 type Layout struct {
 	Width int
@@ -292,8 +292,10 @@ func truncate(text string, width int) string {
 
 func wrapText(text string, width int) []string {
 	if width <= 0 {
-		return []string{""}
+		return []string{text}
 	}
+
+	text = strings.TrimSpace(text)
 
 	if text == "" {
 		return []string{""}
@@ -301,14 +303,30 @@ func wrapText(text string, width int) []string {
 
 	words := strings.Fields(text)
 
-	if len(words) == 0 {
-		return []string{""}
-	}
-
 	var lines []string
 	current := ""
 
 	for _, word := range words {
+		// Kalau satu kata lebih panjang dari lebar printer,
+		// pecah menjadi beberapa bagian.
+		if len(word) > width {
+			if current != "" {
+				lines = append(lines, current)
+				current = ""
+			}
+
+			for len(word) > width {
+				lines = append(lines, word[:width])
+				word = word[width:]
+			}
+
+			if word != "" {
+				current = word
+			}
+
+			continue
+		}
+
 		if current == "" {
 			current = word
 			continue

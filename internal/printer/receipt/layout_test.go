@@ -145,30 +145,76 @@ func TestItemLayoutLongName(t *testing.T) {
 }
 
 func TestWrapText(t *testing.T) {
-	lines := wrapText(
-		"Kopi Susu Gula Aren Extra Large",
-		20,
-	)
-
-	if len(lines) < 2 {
-		t.Fatalf(
-			"expected text to wrap, got %v",
-			lines,
-		)
+	tests := []struct {
+		name  string
+		text  string
+		width int
+		want  []string
+	}{
+		{
+			name:  "short text",
+			text:  "Kopi Susu",
+			width: 32,
+			want:  []string{"Kopi Susu"},
+		},
+		{
+			name:  "exact width",
+			text:  "12345678901234567890123456789012",
+			width: 32,
+			want:  []string{"12345678901234567890123456789012"},
+		},
+		{
+			name:  "long text",
+			text:  "Ini adalah nama produk yang sangat panjang",
+			width: 32,
+			want: []string{
+				"Ini adalah nama produk yang",
+				"sangat panjang",
+			},
+		},
+		{
+			name:  "long word",
+			text:  "123456789012345678901234567890123",
+			width: 32,
+			want: []string{
+				"12345678901234567890123456789012",
+				"3",
+			},
+		},
+		{
+			name:  "empty text",
+			text:  "",
+			width: 32,
+			want:  []string{""},
+		},
 	}
 
-	for i, line := range lines {
-		if len(line) > 20 {
-			t.Fatalf(
-				"line %d exceeds width: %d: %q",
-				i,
-				len(line),
-				line,
-			)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := wrapText(tt.text, tt.width)
+
+			if len(got) != len(tt.want) {
+				t.Fatalf(
+					"expected %d lines, got %d: %#v",
+					len(tt.want),
+					len(got),
+					got,
+				)
+			}
+
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Fatalf(
+						"line %d: expected %q, got %q",
+						i,
+						tt.want[i],
+						got[i],
+					)
+				}
+			}
+		})
 	}
 }
-
 func TestFormatMoney(t *testing.T) {
 	tests := []struct {
 		name     string
