@@ -111,10 +111,10 @@ func TestItemLayout(t *testing.T) {
 }
 
 func TestItemLayoutLongName(t *testing.T) {
-	layout := NewLayout(20)
+	layout := NewLayout(32)
 
 	item := Item{
-		Name:      "Kopi Susu Gula Aren Extra Large",
+		Name:      "Kopi Susu Gula Aren Extra Large Premium",
 		Quantity:  1,
 		UnitPrice: 15000,
 	}
@@ -123,24 +123,61 @@ func TestItemLayoutLongName(t *testing.T) {
 
 	if len(lines) < 3 {
 		t.Fatalf(
-			"expected long name to wrap, got %d lines: %v",
+			"expected long product name to wrap into multiple lines, got %d lines: %v",
 			len(lines),
 			lines,
 		)
 	}
 
+	nameLines := lines[:len(lines)-1]
+
+	if len(nameLines) < 2 {
+		t.Fatalf(
+			"expected product name to wrap, got: %v",
+			nameLines,
+		)
+	}
+
 	for i, line := range lines {
-		if len(line) > 20 {
+		if len(line) > layout.Width {
 			t.Fatalf(
-				"line %d exceeds width: %d: %q",
+				"line %d exceeds printer width: %d > %d: %q",
 				i,
 				len(line),
+				layout.Width,
 				line,
 			)
 		}
 	}
-}
 
+	priceLine := lines[len(lines)-1]
+
+	if !strings.Contains(priceLine, "1 x Rp15.000") {
+		t.Fatalf(
+			"quantity/unit price missing: %q",
+			priceLine,
+		)
+	}
+
+	if !strings.Contains(priceLine, "Rp15.000") {
+		t.Fatalf(
+			"subtotal missing: %q",
+			priceLine,
+		)
+	}
+
+	joined := strings.Join(nameLines, " ")
+
+	expectedName := "Kopi Susu Gula Aren Extra Large Premium"
+
+	if joined != expectedName {
+		t.Fatalf(
+			"product name was changed during wrapping:\n got:  %q\n want: %q",
+			joined,
+			expectedName,
+		)
+	}
+}
 func TestWrapText(t *testing.T) {
 	tests := []struct {
 		name  string
