@@ -54,34 +54,35 @@ func TestPrintHandler(t *testing.T) {
 	handler := NewHandler(
 		printer,
 		renderer,
+		"/dev/usb/lp0",
 	)
 
 	body := `{
-		"store": {
-			"name": "TOKO KASA",
-			"address": "Jl. Contoh No. 123",
-			"phone": "081234567890"
-		},
-		"transaction": {
-			"invoice_number": "INV-HTTP-001",
-			"cashier": "Bizar"
-		},
-		"items": [
-			{
-				"name": "Kopi Susu",
-				"sku": "KOPI-001",
-				"quantity": 2,
-				"unit_price": 15000
-			}
-		],
-		"payment": {
-			"method": "CASH",
-			"paid": 50000
-		},
-		"footer": {
-			"message": "PRINT AGENT OK"
-		}
-	}`
+        "store": {
+            "name": "TOKO KASA",
+            "address": "Jl. Contoh No. 123",
+            "phone": "081234567890"
+        },
+        "transaction": {
+            "invoice_number": "INV-HTTP-001",
+            "cashier": "Bizar"
+        },
+        "items": [
+            {
+                "name": "Kopi Susu",
+                "sku": "KOPI-001",
+                "quantity": 2,
+                "unit_price": 15000
+            }
+        ],
+        "payment": {
+            "method": "CASH",
+            "paid": 50000
+        },
+        "footer": {
+            "message": "PRINT AGENT OK"
+        }
+    }`
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -136,6 +137,7 @@ func TestPrintHandlerInvalidJSON(t *testing.T) {
 	handler := NewHandler(
 		printer,
 		renderer,
+		"/dev/usb/lp0",
 	)
 
 	req := httptest.NewRequest(
@@ -167,6 +169,7 @@ func TestPrintHandlerMethodNotAllowed(t *testing.T) {
 	handler := NewHandler(
 		printer,
 		renderer,
+		"/dev/usb/lp0",
 	)
 
 	req := httptest.NewRequest(
@@ -199,13 +202,14 @@ func TestPrintHandlerOpenError(t *testing.T) {
 	handler := NewHandler(
 		printer,
 		renderer,
+		"/dev/usb/lp0",
 	)
 
 	body := `{
-		"store": {
-			"name": "TOKO KASA"
-		}
-	}`
+        "store": {
+            "name": "TOKO KASA"
+        }
+    }`
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -230,4 +234,47 @@ func TestPrintHandlerOpenError(t *testing.T) {
 	}
 
 	t.Fatal("printer should not be marked as opened")
+}
+
+func TestStatusHandler(t *testing.T) {
+	printer := &mockPrinter{}
+	renderer := receipt.NewRenderer()
+
+	handler := NewHandler(
+		printer,
+		renderer,
+		"/dev/usb/lp0",
+	)
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/status",
+		nil,
+	)
+
+	rec := httptest.NewRecorder()
+
+	handler.Status(rec, req)
+
+	if rec.Code != http.StatusOK &&
+		rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf(
+			"unexpected status code: %d",
+			rec.Code,
+		)
+	}
+
+	body := rec.Body.String()
+
+	if !strings.Contains(body, `"printer"`) {
+		t.Fatalf("response missing printer field: %s", body)
+	}
+
+	if !strings.Contains(body, `"device"`) {
+		t.Fatalf("response missing device field: %s", body)
+	}
+
+	if !strings.Contains(body, `"connected"`) {
+		t.Fatalf("response missing connected field: %s", body)
+	}
 }

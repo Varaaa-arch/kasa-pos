@@ -3,23 +3,27 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"pos-system/internal/printer/receipt"
 	"pos-system/internal/printer/transport"
 )
 
 type Handler struct {
-	Printer  transport.Printer
-	Renderer *receipt.Renderer
+	Printer    transport.Printer
+	Renderer   *receipt.Renderer
+	DevicePath string
 }
 
 func NewHandler(
 	printer transport.Printer,
 	renderer *receipt.Renderer,
+	devicePath string,
 ) *Handler {
 	return &Handler{
-		Printer:  printer,
-		Renderer: renderer,
+		Printer:    printer,
+		Renderer:   renderer,
+		DevicePath: devicePath,
 	}
 }
 
@@ -39,6 +43,12 @@ type PrintTransaction struct {
 
 type PrintResponse struct {
 	Message string `json:"message"`
+}
+
+type StatusResponse struct {
+	Printer   string `json:"printer"`
+	Device    string `json:"device"`
+	Connected bool   `json:"connected"`
 }
 
 func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
@@ -103,4 +113,38 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 			Message: "receipt printed successfully",
 		},
 	)
+}
+
+func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(
+			w,
+			"method not allowed",
+			http.StatusMethodNotAllowed,
+		)
+		return
+	}
+
+	_, err := os.Stat(h.DevicePath)
+
+	response := StatusResponse{
+		Printer:   "BP-LITE58",
+		Device:    h.DevicePath,
+		Connected: err == nil,
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	if err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		return
+	}
 }

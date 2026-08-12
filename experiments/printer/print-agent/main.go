@@ -18,9 +18,11 @@ func main() {
 	printer := transport.NewUSBPrinter(printerDevice)
 	renderer := receipt.NewRenderer()
 
+	// Handler sekarang menerima devicePath sebagai argumen ketiga
 	handler := api.NewHandler(
 		printer,
 		renderer,
+		printerDevice,
 	)
 
 	mux := http.NewServeMux()
@@ -28,6 +30,12 @@ func main() {
 	mux.HandleFunc(
 		"/print",
 		handler.Print,
+	)
+
+	// Menambahkan route /status
+	mux.HandleFunc(
+		"/status",
+		handler.Status,
 	)
 
 	server := &http.Server{
