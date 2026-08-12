@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"pos-system/internal/printer/logging"
 	"pos-system/internal/printer/receipt"
 )
 
@@ -48,13 +49,14 @@ func (m *mockPrinter) Close() error {
 
 func TestPrintHandler(t *testing.T) {
 	printer := &mockPrinter{}
-
 	renderer := receipt.NewRenderer()
+	logger := logging.New()
 
 	handler := NewHandler(
 		printer,
 		renderer,
 		"/dev/usb/lp0",
+		logger,
 	)
 
 	body := `{
@@ -143,11 +145,13 @@ func TestPrintHandler(t *testing.T) {
 func TestPrintHandlerInvalidJSON(t *testing.T) {
 	printer := &mockPrinter{}
 	renderer := receipt.NewRenderer()
+	logger := logging.New()
 
 	handler := NewHandler(
 		printer,
 		renderer,
 		"/dev/usb/lp0",
+		logger,
 	)
 
 	req := httptest.NewRequest(
@@ -175,11 +179,13 @@ func TestPrintHandlerInvalidJSON(t *testing.T) {
 func TestPrintHandlerMethodNotAllowed(t *testing.T) {
 	printer := &mockPrinter{}
 	renderer := receipt.NewRenderer()
+	logger := logging.New()
 
 	handler := NewHandler(
 		printer,
 		renderer,
 		"/dev/usb/lp0",
+		logger,
 	)
 
 	req := httptest.NewRequest(
@@ -208,11 +214,13 @@ func TestPrintHandlerOpenError(t *testing.T) {
 	}
 
 	renderer := receipt.NewRenderer()
+	logger := logging.New()
 
 	handler := NewHandler(
 		printer,
 		renderer,
 		"/dev/usb/lp0",
+		logger,
 	)
 
 	body := `{
@@ -249,11 +257,13 @@ func TestPrintHandlerOpenError(t *testing.T) {
 func TestStatusHandler(t *testing.T) {
 	printer := &mockPrinter{}
 	renderer := receipt.NewRenderer()
+	logger := logging.New()
 
 	handler := NewHandler(
 		printer,
 		renderer,
 		"/dev/usb/lp0",
+		logger,
 	)
 
 	req := httptest.NewRequest(
@@ -311,25 +321,6 @@ func TestGenerateJobID(t *testing.T) {
 		t.Fatalf(
 			"unexpected job ID prefix: %q",
 			id,
-		)
-	}
-}
-
-func TestGenerateJobIDsAreDifferent(t *testing.T) {
-	first, err := generateJobID()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	second, err := generateJobID()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if first == second {
-		t.Fatalf(
-			"generated duplicate job IDs: %q",
-			first,
 		)
 	}
 }

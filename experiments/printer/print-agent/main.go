@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"pos-system/internal/printer/api"
+	"pos-system/internal/printer/logging"
 	"pos-system/internal/printer/receipt"
 	"pos-system/internal/printer/transport"
 )
@@ -17,12 +17,13 @@ const (
 func main() {
 	printer := transport.NewUSBPrinter(printerDevice)
 	renderer := receipt.NewRenderer()
+	logger := logging.New()
 
-	// Handler sekarang menerima devicePath sebagai argumen ketiga
 	handler := api.NewHandler(
 		printer,
 		renderer,
 		printerDevice,
+		logger,
 	)
 
 	mux := http.NewServeMux()
@@ -32,7 +33,6 @@ func main() {
 		handler.Print,
 	)
 
-	// Menambahkan route /status
 	mux.HandleFunc(
 		"/status",
 		handler.Status,
@@ -43,12 +43,12 @@ func main() {
 		Handler: mux,
 	}
 
-	log.Printf(
-		"print agent listening on http://%s",
+	logger.Printf(
+		"starting print agent on %s",
 		listenAddress,
 	)
 
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"pos-system/internal/printer/logging"
 	"pos-system/internal/printer/receipt"
 	"pos-system/internal/printer/transport"
 )
@@ -15,17 +16,20 @@ type Handler struct {
 	Printer    transport.Printer
 	Renderer   *receipt.Renderer
 	DevicePath string
+	Logger     *logging.Logger
 }
 
 func NewHandler(
 	printer transport.Printer,
 	renderer *receipt.Renderer,
 	devicePath string,
+	logger *logging.Logger,
 ) *Handler {
 	return &Handler{
 		Printer:    printer,
 		Renderer:   renderer,
 		DevicePath: devicePath,
+		Logger:     logger,
 	}
 }
 
@@ -64,11 +68,14 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.Logger.Printf("print request received")
+
 	var request PrintRequest
 
 	decoder := json.NewDecoder(r.Body)
 
 	if err := decoder.Decode(&request); err != nil {
+		h.Logger.Printf("invalid request body: %v", err)
 		http.Error(
 			w,
 			"invalid request body",
@@ -79,6 +86,7 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 
 	jobID, err := generateJobID()
 	if err != nil {
+		h.Logger.Printf("failed to generate job ID: %v", err)
 		http.Error(
 			w,
 			"failed to generate print job id",
@@ -86,6 +94,8 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	h.Logger.Printf("print job created: job_id=%s", jobID)
 
 	transaction := receipt.Receipt{
 		Store: request.Store,
@@ -101,11 +111,22 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		Footer:  request.Footer,
 	}
 
+	h.Logger.Printf(
+		"print started: job_id=%s invoice=%s",
+		jobID,
+		transaction.Transaction.InvoiceNumber,
+	)
+
 	if err := receipt.Print(
 		h.Printer,
 		h.Renderer,
 		transaction,
 	); err != nil {
+		h.Logger.Printf(
+			"print failed: job_id=%s error=%v",
+			jobID,
+			err,
+		)
 		http.Error(
 			w,
 			"failed to print receipt",
@@ -113,6 +134,12 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	h.Logger.Printf(
+		"print completed: job_id=%s invoice=%s",
+		jobID,
+		transaction.Transaction.InvoiceNumber,
+	)
 
 	w.Header().Set(
 		"Content-Type",
