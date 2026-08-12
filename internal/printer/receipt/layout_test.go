@@ -438,3 +438,158 @@ func TestItemLayoutLargePrice(t *testing.T) {
 	}
 
 }
+
+func TestManyItems(t *testing.T) {
+	layout := NewLayout(32)
+
+	items := []Item{
+		{
+			Name:      "Kopi Susu",
+			Quantity:  2,
+			UnitPrice: 15000,
+		},
+		{
+			Name:      "Roti Bakar",
+			Quantity:  1,
+			UnitPrice: 12000,
+		},
+		{
+			Name:      "Air Mineral",
+			Quantity:  3,
+			UnitPrice: 5000,
+		},
+		{
+			Name:      "Nasi Goreng Spesial",
+			Quantity:  2,
+			UnitPrice: 25000,
+		},
+		{
+			Name:      "Es Teh Manis",
+			Quantity:  4,
+			UnitPrice: 5000,
+		},
+		{
+			Name:      "Kentang Goreng",
+			Quantity:  2,
+			UnitPrice: 10000,
+		},
+		{
+			Name:      "Ayam Geprek",
+			Quantity:  3,
+			UnitPrice: 18000,
+		},
+		{
+			Name:      "Mie Goreng",
+			Quantity:  2,
+			UnitPrice: 15000,
+		},
+		{
+			Name:      "Jus Alpukat",
+			Quantity:  1,
+			UnitPrice: 12000,
+		},
+		{
+			Name:      "Pisang Coklat Keju",
+			Quantity:  2,
+			UnitPrice: 13000,
+		},
+	}
+
+	r := Receipt{
+		Store: Store{
+			Name: "TOKO KASA",
+		},
+		Transaction: Transaction{
+			InvoiceNumber: "INV-MANY-001",
+			TimeStamp:     time.Now(),
+			Cashier:       "Bizar",
+		},
+		Items: items,
+		Payment: Payment{
+			Method: "CASH",
+			Paid:   300000,
+		},
+		Footer: Footer{
+			Message: "TERIMA KASIH",
+		},
+	}
+
+	lines := layout.Render(r)
+
+	if len(lines) == 0 {
+		t.Fatal("expected receipt lines, got empty result")
+	}
+
+	// Every rendered line must fit the printer width.
+	for i, line := range lines {
+		if len(line) > layout.Width {
+			t.Fatalf(
+				"line %d exceeds receipt width: %d > %d: %q",
+				i,
+				len(line),
+				layout.Width,
+				line,
+			)
+		}
+	}
+
+	// Verify every product appears in the rendered receipt.
+	receipt := strings.Join(lines, "\n")
+
+	for _, item := range items {
+		if !strings.Contains(receipt, item.Name) {
+			t.Fatalf(
+				"receipt missing item %q:\n%s",
+				item.Name,
+				receipt,
+			)
+		}
+	}
+
+	// Verify the number of items rendered.
+	//
+	// Each item produces at least:
+	//   1+ lines for the product name
+	//   1 line for quantity + price
+	//
+	// Therefore the receipt should contain at least
+	// one occurrence of each item's name.
+	for _, item := range items {
+		count := strings.Count(receipt, item.Name)
+
+		if count != 1 {
+			t.Fatalf(
+				"expected item %q to appear exactly once, got %d occurrences",
+				item.Name,
+				count,
+			)
+		}
+	}
+
+	// Verify the calculated subtotal.
+	expectedSubtotal :=
+		int64(2*15000) +
+			int64(1*12000) +
+			int64(3*5000) +
+			int64(2*25000) +
+			int64(4*5000) +
+			int64(2*10000) +
+			int64(3*18000) +
+			int64(2*15000) +
+			int64(1*12000) +
+			int64(2*13000)
+
+	if expectedSubtotal != 269000 {
+		t.Fatalf(
+			"test setup error: expected subtotal calculation = %d, want 269000",
+			expectedSubtotal,
+		)
+	}
+
+	if !strings.Contains(receipt, "Rp269.000") {
+		t.Fatalf(
+			"receipt missing subtotal Rp269.000:\n%s",
+			receipt,
+		)
+	}
+}
