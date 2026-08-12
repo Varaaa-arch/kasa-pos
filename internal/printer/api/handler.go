@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -42,6 +44,7 @@ type PrintTransaction struct {
 }
 
 type PrintResponse struct {
+	JobID   string `json:"job_id"`
 	Message string `json:"message"`
 }
 
@@ -70,6 +73,16 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 			w,
 			"invalid request body",
 			http.StatusBadRequest,
+		)
+		return
+	}
+
+	jobID, err := generateJobID()
+	if err != nil {
+		http.Error(
+			w,
+			"failed to generate print job id",
+			http.StatusInternalServerError,
 		)
 		return
 	}
@@ -110,6 +123,7 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 
 	_ = json.NewEncoder(w).Encode(
 		PrintResponse{
+			JobID:   jobID,
 			Message: "receipt printed successfully",
 		},
 	)
@@ -147,4 +161,14 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		return
 	}
+}
+
+func generateJobID() (string, error) {
+	data := make([]byte, 8)
+
+	if _, err := rand.Read(data); err != nil {
+		return "", err
+	}
+
+	return "PJ-" + hex.EncodeToString(data), nil
 }

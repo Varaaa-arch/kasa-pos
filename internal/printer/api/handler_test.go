@@ -128,6 +128,16 @@ func TestPrintHandler(t *testing.T) {
 			rec.Body.String(),
 		)
 	}
+
+	if !strings.Contains(
+		rec.Body.String(),
+		`"job_id"`,
+	) {
+		t.Fatalf(
+			"response missing job_id: %s",
+			rec.Body.String(),
+		)
+	}
 }
 
 func TestPrintHandlerInvalidJSON(t *testing.T) {
@@ -276,5 +286,50 @@ func TestStatusHandler(t *testing.T) {
 
 	if !strings.Contains(body, `"connected"`) {
 		t.Fatalf("response missing connected field: %s", body)
+	}
+}
+
+func TestGenerateJobID(t *testing.T) {
+	id, err := generateJobID()
+
+	if err != nil {
+		t.Fatalf(
+			"generateJobID() returned error: %v",
+			err,
+		)
+	}
+
+	if len(id) != 19 {
+		t.Fatalf(
+			"unexpected job ID length: %d (%q)",
+			len(id),
+			id,
+		)
+	}
+
+	if id[:3] != "PJ-" {
+		t.Fatalf(
+			"unexpected job ID prefix: %q",
+			id,
+		)
+	}
+}
+
+func TestGenerateJobIDsAreDifferent(t *testing.T) {
+	first, err := generateJobID()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	second, err := generateJobID()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first == second {
+		t.Fatalf(
+			"generated duplicate job IDs: %q",
+			first,
+		)
 	}
 }
