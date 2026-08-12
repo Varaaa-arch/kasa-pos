@@ -1,6 +1,7 @@
 package receipt
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -590,6 +591,285 @@ func TestManyItems(t *testing.T) {
 		t.Fatalf(
 			"receipt missing subtotal Rp269.000:\n%s",
 			receipt,
+		)
+	}
+}
+
+func TestLargePrices(t *testing.T) {
+	layout := NewLayout(32)
+
+	tests := []struct {
+		name      string
+		itemName  string
+		quantity  int
+		unitPrice int64
+	}{
+		{
+			name:      "one million",
+			itemName:  "Laptop",
+			quantity:  1,
+			unitPrice: 1_000_000,
+		},
+		{
+			name:      "ten million",
+			itemName:  "Smartphone",
+			quantity:  2,
+			unitPrice: 10_000_000,
+		},
+		{
+			name:      "one hundred million",
+			itemName:  "Server Rack",
+			quantity:  1,
+			unitPrice: 100_000_000,
+		},
+		{
+			name:      "large quantity",
+			itemName:  "Kursi Kantor",
+			quantity:  999,
+			unitPrice: 999_999,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := Item{
+				Name:      tt.itemName,
+				Quantity:  tt.quantity,
+				UnitPrice: tt.unitPrice,
+			}
+
+			lines := layout.Item(item)
+
+			if len(lines) < 2 {
+				t.Fatalf(
+					"expected at least 2 lines, got %d: %#v",
+					len(lines),
+					lines,
+				)
+			}
+
+			// Every line must fit the printer width.
+			for i, line := range lines {
+				if len(line) > layout.Width {
+					t.Fatalf(
+						"line %d exceeds printer width: %d > %d: %q",
+						i,
+						len(line),
+						layout.Width,
+						line,
+					)
+				}
+			}
+
+			priceLine := lines[len(lines)-1]
+
+			expectedUnitPrice := "Rp" + formatMoney(tt.unitPrice)
+
+			if !strings.Contains(priceLine, expectedUnitPrice) {
+				t.Fatalf(
+					"unit price missing:\n got: %q\n want to contain: %q",
+					priceLine,
+					expectedUnitPrice,
+				)
+			}
+
+			expectedTotal := "Rp" + formatMoney(item.Total())
+
+			if !strings.Contains(priceLine, expectedTotal) {
+				t.Fatalf(
+					"subtotal missing:\n got: %q\n want to contain: %q",
+					priceLine,
+					expectedTotal,
+				)
+			}
+		})
+	}
+}
+
+func TestLargeQuantities(t *testing.T) {
+	layout := NewLayout(32)
+
+	tests := []struct {
+		name     string
+		itemName string
+		quantity int
+		price    int64
+	}{
+		{
+			name:     "quantity 99",
+			itemName: "Kopi Susu",
+			quantity: 99,
+			price:    15000,
+		},
+		{
+			name:     "quantity 999",
+			itemName: "Air Mineral",
+			quantity: 999,
+			price:    5000,
+		},
+		{
+			name:     "quantity 9999",
+			itemName: "Roti Bakar",
+			quantity: 9999,
+			price:    12000,
+		},
+		{
+			name:     "quantity 100000",
+			itemName: "Pulpen",
+			quantity: 100000,
+			price:    3000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := Item{
+				Name:      tt.itemName,
+				Quantity:  tt.quantity,
+				UnitPrice: tt.price,
+			}
+
+			lines := layout.Item(item)
+
+			if len(lines) < 2 {
+				t.Fatalf(
+					"expected at least 2 lines, got %d: %#v",
+					len(lines),
+					lines,
+				)
+			}
+
+			// Every rendered line must fit printer width.
+			for i, line := range lines {
+				if len(line) > layout.Width {
+					t.Fatalf(
+						"line %d exceeds printer width: %d > %d: %q",
+						i,
+						len(line),
+						layout.Width,
+						line,
+					)
+				}
+			}
+
+			priceLine := lines[len(lines)-1]
+
+			// Quantity must appear in the rendered line.
+			expectedQuantity := fmt.Sprintf(
+				"%d x Rp%s",
+				tt.quantity,
+				formatMoney(tt.price),
+			)
+
+			if !strings.Contains(priceLine, expectedQuantity) {
+				t.Fatalf(
+					"quantity/price missing:\n got: %q\n want to contain: %q",
+					priceLine,
+					expectedQuantity,
+				)
+			}
+
+			// Total must be calculated correctly.
+			expectedTotal := "Rp" + formatMoney(item.Total())
+
+			if !strings.Contains(priceLine, expectedTotal) {
+				t.Fatalf(
+					"subtotal missing:\n got: %q\n want to contain: %q",
+					priceLine,
+					expectedTotal,
+				)
+			}
+		})
+	}
+}
+
+func TestReceiptWithoutItems(t *testing.T) {
+	layout := NewLayout(32)
+
+	r := Receipt{
+		Store: Store{
+			Name:    "TOKO KASA",
+			Address: "Jl. Contoh No. 123",
+			Phone:   "081234567890",
+		},
+
+		Transaction: Transaction{
+			InvoiceNumber: "INV-EMPTY-001",
+			TimeStamp:     time.Now(),
+			Cashier:       "Bizar",
+		},
+
+		Items: []Item{},
+
+		Summary: Summary{
+			SubTotal:      0,
+			Discount:      0,
+			Tax:           0,
+			ServiceCharge: 0,
+			Total:         0,
+		},
+
+		Payment: Payment{
+			Method: "CASH",
+			Paid:   0,
+			Change: 0,
+		},
+
+		Footer: Footer{
+			Message: "TERIMA KASIH",
+		},
+	}
+
+	lines := layout.Render(r)
+
+	if len(lines) == 0 {
+		t.Fatal("expected receipt layout, got empty result")
+	}
+
+	// Every line must stay within the printer width.
+	for i, line := range lines {
+		if len(line) > layout.Width {
+			t.Fatalf(
+				"line %d exceeds printer width: %d > %d: %q",
+				i,
+				len(line),
+				layout.Width,
+				line,
+			)
+		}
+	}
+
+	output := strings.Join(lines, "\n")
+
+	expectedTexts := []string{
+		"TOKO KASA",
+		"INV-EMPTY-001",
+		"Bizar",
+		"Subtotal",
+		"TOTAL",
+		"CASH",
+		"Bayar",
+		"Kembali",
+		"TERIMA KASIH",
+	}
+
+	for _, expected := range expectedTexts {
+		if !strings.Contains(output, expected) {
+			t.Fatalf(
+				"receipt missing %q:\n%s",
+				expected,
+				output,
+			)
+		}
+	}
+
+	// Receipt must not contain any product item.
+	// Since there are no items, known item-specific content
+	// should not appear.
+	if strings.Contains(output, "x Rp") {
+		t.Fatalf(
+			"receipt unexpectedly contains item pricing:\n%s",
+			output,
 		)
 	}
 }
