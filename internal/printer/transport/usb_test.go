@@ -30,3 +30,16 @@ func TestUSBPrinterImplementsPrinter(t *testing.T) {
 		t.Fatal("expected printer implementation")
 	}
 }
+
+func TestUSBPrinterLifecycle(t *testing.T) {
+	printer := NewUSBPrinter("/dev/usb/lp0")
+
+	if printer == nil {
+		t.Fatal("expected printer instance")
+	}
+
+	// Initial state.
+	if printer.file != nil {
+		t.Fatal("expected printer to be closed initially")
+	}
+}
