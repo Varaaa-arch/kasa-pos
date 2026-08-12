@@ -1,13 +1,25 @@
 package receipt
 
-import "pos-system/internal/printer/transport"
+import (
+	"pos-system/internal/printer/retry"
+	"pos-system/internal/printer/transport"
+)
 
 func Print(
 	printer transport.Printer,
 	renderer *Renderer,
 	receipt Receipt,
 ) error {
-	if err := printer.Open(); err != nil {
+	config := retry.DefaultConfig()
+
+	err := retry.Do(
+		config,
+		func() error {
+			return printer.Open()
+		},
+	)
+
+	if err != nil {
 		return err
 	}
 
@@ -15,7 +27,7 @@ func Print(
 
 	data := renderer.Render(receipt)
 
-	_, err := printer.Write(data)
+	_, err = printer.Write(data)
 	if err != nil {
 		return err
 	}

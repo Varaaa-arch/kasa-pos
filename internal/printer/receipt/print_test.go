@@ -29,6 +29,31 @@ func (p *failingPrinter) Close() error {
 	return p.closeErr
 }
 
+type retryPrinter struct {
+	openAttempts  int
+	writeAttempts int
+}
+
+func (p *retryPrinter) Open() error {
+	p.openAttempts++
+
+	if p.openAttempts < 3 {
+		return errors.New("printer temporarily unavailable")
+	}
+
+	return nil
+}
+
+func (p *retryPrinter) Write(data []byte) (int, error) {
+	p.writeAttempts++
+
+	return len(data), nil
+}
+
+func (p *retryPrinter) Close() error {
+	return nil
+}
+
 func TestPrintOpenError(t *testing.T) {
 	expectedErr := errors.New("printer connection failed")
 
@@ -116,5 +141,37 @@ func TestPrintClosesPrinter(t *testing.T) {
 
 	if !printer.closed {
 		t.Fatal("expected printer to be closed")
+	}
+}
+
+func TestPrintRetriesOpen(t *testing.T) {
+	printer := &retryPrinter{}
+	renderer := NewRenderer()
+
+	err := Print(
+		printer,
+		renderer,
+		Receipt{},
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"expected print to succeed after retry: %v",
+			err,
+		)
+	}
+
+	if printer.openAttempts != 3 {
+		t.Fatalf(
+			"expected 3 open attempts, got %d",
+			printer.openAttempts,
+		)
+	}
+
+	if printer.writeAttempts != 1 {
+		t.Fatalf(
+			"expected exactly 1 write attempt, got %d",
+			printer.writeAttempts,
+		)
 	}
 }
