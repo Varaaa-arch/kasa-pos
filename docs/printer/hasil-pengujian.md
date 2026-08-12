@@ -292,4 +292,190 @@ Hasil:
 ```text
 PASS
 ```
-EOF
+# Hasil Pengujian Printer BP-LITE58
+
+Dokumentasi ini mencatat hasil pengujian fisik (*physical testing*) integrasi Go dengan thermal printer BP-LITE58 melalui Linux USB printer device (`/dev/usb/lp0`).
+
+## Physical Print Evidence
+
+### 1. Basic Text
+
+Printer berhasil mencetak:
+
+```text
+HELLO WORLD
+```
+
+Pengujian membuktikan pipeline berikut berhasil:
+
+```text
+Go
+↓
+ESC/POS Core
+↓
+Printer Transport
+↓
+/dev/usb/lp0
+↓
+BP-LITE58
+```
+
+### 2. ESC/POS Formatting
+
+Pengujian fisik berhasil untuk:
+
+- Bold
+- Left alignment
+- Center alignment
+- Right alignment
+- Font size
+- Paper feed
+
+### 3. Barcode
+
+Printer berhasil mencetak barcode CODE39.
+
+**Data pengujian:** `KASA001`
+
+### 4. Paper Cut
+
+Automatic paper cut diuji menggunakan ESC/POS `GS V 0`.
+
+**Hasil pengujian:**
+
+- Automatic cutter: tidak tersedia
+- Manual tear-off: tersedia
+
+Printer melakukan paper feed, tetapi tidak melakukan pemotongan otomatis.
+
+### 5. Character Width
+
+Character width diuji menggunakan beberapa panjang baris.
+
+| Panjang baris | Hasil |
+|---:|---|
+| 32 characters | 1 line |
+| 33 characters | Wrapped |
+| 42 characters | Wrapped |
+| 48 characters | Wrapped |
+| 49 characters | Wrapped |
+
+**Kesimpulan:**
+
+Normal character width = **32 characters**.
+
+Nilai ini digunakan sebagai constraint utama *Receipt Layout Engine*.
+
+### 6. Prototype Receipt
+
+Prototype receipt berhasil dicetak secara fisik. Receipt mencakup:
+
+- Store information
+- Invoice
+- Timestamp
+- Cashier
+- Product items
+- Quantity
+- Unit price
+- Subtotal
+- Total
+- Payment
+- Change
+- Footer
+
+### 7. Long Product Name
+
+Produk dengan nama panjang diuji menggunakan receipt width 32 karakter.
+
+Layout engine berhasil melakukan wrapping sehingga setiap baris tetap berada dalam batas printer.
+
+### 8. Multiple Items
+
+Receipt dengan banyak item diuji.
+
+**Hasil pengujian:**
+
+- All items rendered
+- All lines remained within printer width
+- Subtotal remained correct
+
+### 9. Large Price
+
+Harga besar diuji sampai nominal jutaan dan ratusan juta.
+
+**Hasil pengujian:**
+
+- Price formatting remained correct
+- Right-aligned price remained within printer width
+- Layout remained within printer width
+
+### 10. Large Quantity
+
+Quantity besar diuji sampai:
+
+- `99`
+- `999`
+- `9999`
+- `100000`
+
+**Hasil pengujian:**
+
+- Quantity remained visible
+- Subtotal remained correctly calculated
+- Layout remained within printer width
+
+### 11. Printer Disconnect
+
+Printer dicabut ketika aplikasi sedang aktif.
+
+**Hasil pengujian:**
+
+```text
+Write error: no such device
+```
+
+Error berhasil diteruskan ke aplikasi tanpa menyebabkan crash.
+
+### 12. Printer Reconnect
+
+Setelah printer disambungkan kembali:
+
+```text
+Plaintext
+↓
+USB reconnect
+↓
+/dev/usb/lp0 available
+↓
+Printer reopened successfully
+↓
+Write succeeded
+```
+
+**Physical test:**
+
+`KASA RECONNECT OK` berhasil dicetak.
+
+## Physical Test Conclusion
+
+BP-LITE58 berhasil digunakan dari Go melalui Linux USB printer device.
+
+### Verified Capabilities
+
+| Capability | Status |
+|---|---|
+| USB connection | PASS |
+| Printer transport | PASS |
+| ESC/POS initialization | PASS |
+| Text printing | PASS |
+| Bold | PASS |
+| Alignment | PASS |
+| Font size | PASS |
+| Paper feed | PASS |
+| Barcode CODE39 | PASS |
+| Prototype receipt | PASS |
+| Manual tear-off | PASS |
+| Disconnect detection | PASS |
+| Reconnect | PASS |
+
+Printer character width untuk normal printing ditetapkan sebesar **32 characters**.
