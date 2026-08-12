@@ -38,8 +38,24 @@ func (l Layout) Center(text string) string {
 }
 
 func (l Layout) LeftRight(left, right string) string {
+	if l.Width <= 0 {
+		return ""
+	}
+
+	// Right side alone is wider than the receipt.
+	if len(right) >= l.Width {
+		return truncate(right, l.Width)
+	}
+
+	// Left + right don't fit.
 	if len(left)+len(right) >= l.Width {
-		return truncate(left, l.Width-len(right)) + right
+		maxLeft := l.Width - len(right)
+
+		if maxLeft <= 0 {
+			return truncate(right, l.Width)
+		}
+
+		return truncate(left, maxLeft) + right
 	}
 
 	spaces := l.Width - len(left) - len(right)

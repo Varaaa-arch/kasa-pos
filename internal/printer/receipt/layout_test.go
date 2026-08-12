@@ -66,7 +66,7 @@ func TestLeftRight(t *testing.T) {
 }
 
 func TestItemLayout(t *testing.T) {
-	layout := NewLayout(48)
+	layout := NewLayout(32)
 
 	item := Item{
 		Name:      "Kopi Susu",
@@ -76,40 +76,37 @@ func TestItemLayout(t *testing.T) {
 
 	lines := layout.Item(item)
 
-	if len(lines) != 2 {
+	expected := []string{
+		"Kopi Susu",
+		"2 x Rp15.000            Rp30.000",
+	}
+
+	if len(lines) != len(expected) {
 		t.Fatalf(
-			"expected 2 lines, got %d: %v",
+			"expected %d lines, got %d: %#v",
+			len(expected),
 			len(lines),
 			lines,
 		)
 	}
 
-	if lines[0] != "Kopi Susu" {
-		t.Fatalf(
-			"unexpected item name: %q",
-			lines[0],
-		)
-	}
+	for i := range expected {
+		if lines[i] != expected[i] {
+			t.Fatalf(
+				"line %d: expected %q, got %q",
+				i,
+				expected[i],
+				lines[i],
+			)
+		}
 
-	if !strings.Contains(lines[1], "2 x Rp15.000") {
-		t.Fatalf(
-			"quantity/unit price missing: %q",
-			lines[1],
-		)
-	}
-
-	if !strings.HasSuffix(lines[1], "Rp30.000") {
-		t.Fatalf(
-			"item total missing: %q",
-			lines[1],
-		)
-	}
-
-	if len(lines[1]) > 48 {
-		t.Fatalf(
-			"item line exceeds width: %d",
-			len(lines[1]),
-		)
+		if len(lines[i]) > 32 {
+			t.Fatalf(
+				"line %d exceeds printer width: %d > 32",
+				i,
+				len(lines[i]),
+			)
+		}
 	}
 }
 
@@ -375,4 +372,32 @@ func TestEmptyReceipt(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestItemLayoutLargePrice(t *testing.T) {
+	layout := NewLayout(32)
+
+	item := Item{
+		Name:      "Laptop Gaming",
+		Quantity:  99,
+		UnitPrice: 12500000,
+	}
+
+	lines := layout.Item(item)
+
+	if len(lines) != 2 {
+		t.Fatalf(
+			"expected 2 lines, got %d: %#v",
+			len(lines),
+			lines,
+		)
+	}
+
+	if len(lines[1]) > 32 {
+		t.Fatalf(
+			"item price line exceeds width: %d > 32",
+			len(lines[1]),
+		)
+	}
+
 }
