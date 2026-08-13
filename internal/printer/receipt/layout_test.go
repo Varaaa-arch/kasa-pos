@@ -314,8 +314,17 @@ func TestReceiptRender(t *testing.T) {
 		Transaction: domainreceipt.Transaction{
 			ID:            "TXN-000001",
 			InvoiceNumber: "INV-000001",
-			Timestamp:     time.Date(2026, 8, 11, 20, 0, 0, 0, time.Local),
-			Cashier:       "Bizar",
+			Timestamp: time.Date(
+				2026,
+				8,
+				11,
+				20,
+				0,
+				0,
+				0,
+				time.Local,
+			),
+			Cashier: "Bizar",
 		},
 
 		Items: []domainreceipt.Item{

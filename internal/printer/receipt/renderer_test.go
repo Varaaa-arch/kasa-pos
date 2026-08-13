@@ -79,11 +79,11 @@ func TestRenderer(t *testing.T) {
 		"Kasir: Bizar",
 		"Kopi Susu",
 		"Roti Bakar",
-		"Rp 30.000",
-		"Rp 12.000",
-		"Rp 42.000",
-		"Rp 50.000",
-		"Rp 8.000",
+		"Rp30.000",
+		"Rp12.000",
+		"Rp42.000",
+		"Rp50.000",
+		"Rp8.000",
 		"TERIMA KASIH",
 	}
 
