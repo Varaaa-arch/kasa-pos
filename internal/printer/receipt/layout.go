@@ -161,54 +161,10 @@ func (l Layout) LeftRight(left, right string) string {
 }
 
 func (l Layout) Item(item domainreceipt.Item) []string {
-	var lines []string
+	renderer := NewItemRenderer(l)
 
-	// Product name.
-	lines = append(
-		lines,
-		wrapText(item.Name, l.Width)...,
-	)
-
-	// Quantity x unit price.
-	qtyPrice := fmt.Sprintf(
-		"%d x Rp%s",
-		item.Quantity,
-		formatMoney(item.UnitPrice),
-	)
-
-	// Item subtotal.
-	total := "Rp" + formatMoney(itemTotal(item))
-
-	// Normal case:
-	// quantity/unit price + subtotal fit on one line.
-	if len(qtyPrice)+len(total) < l.Width {
-		lines = append(
-			lines,
-			l.LeftRight(
-				qtyPrice,
-				total,
-			),
-		)
-
-		return lines
-	}
-
-	// Large values:
-	// keep quantity/unit price and subtotal on separate lines
-	// instead of corrupting or truncating the values.
-	lines = append(
-		lines,
-		l.Left(qtyPrice),
-	)
-
-	lines = append(
-		lines,
-		l.Right(total),
-	)
-
-	return lines
+	return renderer.Render(item)
 }
-
 func (l Layout) Render(input domainreceipt.Receipt) []string {
 	var lines []string
 
