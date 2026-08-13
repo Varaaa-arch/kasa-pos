@@ -5,6 +5,7 @@ import "time"
 type Receipt struct {
 	Store       Store
 	Transaction Transaction
+	Customer    Customer
 	Items       []Item
 	Summary     Summary
 	Payment     Payment
@@ -18,21 +19,28 @@ type Store struct {
 }
 
 type Transaction struct {
+	ID            string
 	InvoiceNumber string
-	TimeStamp     time.Time
+	Timestamp     time.Time
 	Cashier       string
 }
 
+type Customer struct {
+	ID    string
+	Name  string
+	Phone string
+}
+
 type Item struct {
-	Name      string
+	ProductID string
 	SKU       string
+	Name      string
 	Quantity  int
 	UnitPrice int64
-	SubTotal  int64
 }
 
 type Summary struct {
-	SubTotal      int64
+	Subtotal      int64
 	Discount      int64
 	Tax           int64
 	ServiceCharge int64

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	domainreceipt "pos-system/internal/domain/receipt"
 	"pos-system/internal/printer/escpos"
 )
 
-const DefaultLineWidth = 48
+const DefaultLineWidth = 32
 
 type Renderer struct {
 	Width int
@@ -19,7 +20,7 @@ func NewRenderer() *Renderer {
 	}
 }
 
-func (r *Renderer) Render(receipt Receipt) []byte {
+func (r *Renderer) Render(input domainreceipt.Receipt) []byte {
 	var data []byte
 
 	data = append(data, escpos.Initialize()...)
@@ -27,18 +28,17 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 	// Header
 	data = append(data, escpos.AlignCenter()...)
 	data = append(data, escpos.Bold(true)...)
-	data = append(data, escpos.Text(receipt.Store.Name)...)
+	data = append(data, escpos.Text(input.Store.Name)...)
 	data = append(data, escpos.LF()...)
-
 	data = append(data, escpos.Bold(false)...)
 
-	if receipt.Store.Address != "" {
-		data = append(data, escpos.Text(receipt.Store.Address)...)
+	if input.Store.Address != "" {
+		data = append(data, escpos.Text(input.Store.Address)...)
 		data = append(data, escpos.LF()...)
 	}
 
-	if receipt.Store.Phone != "" {
-		data = append(data, escpos.Text(receipt.Store.Phone)...)
+	if input.Store.Phone != "" {
+		data = append(data, escpos.Text(input.Store.Phone)...)
 		data = append(data, escpos.LF()...)
 	}
 
@@ -49,20 +49,25 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 	// Transaction
 	data = append(data, escpos.AlignLeft()...)
 
-	if receipt.Transaction.InvoiceNumber != "" {
-		line := "Invoice: " + receipt.Transaction.InvoiceNumber
+	if input.Transaction.InvoiceNumber != "" {
+		line := "Invoice: " + input.Transaction.InvoiceNumber
+
 		data = append(data, escpos.Text(line)...)
 		data = append(data, escpos.LF()...)
 	}
 
-	if !receipt.Transaction.TimeStamp.IsZero() {
-		line := receipt.Transaction.TimeStamp.Format("02/01/2006 15:04:05")
+	if !input.Transaction.Timestamp.IsZero() {
+		line := input.Transaction.Timestamp.Format(
+			"02/01/2006 15:04:05",
+		)
+
 		data = append(data, escpos.Text(line)...)
 		data = append(data, escpos.LF()...)
 	}
 
-	if receipt.Transaction.Cashier != "" {
-		line := "Kasir: " + receipt.Transaction.Cashier
+	if input.Transaction.Cashier != "" {
+		line := "Kasir: " + input.Transaction.Cashier
+
 		data = append(data, escpos.Text(line)...)
 		data = append(data, escpos.LF()...)
 	}
@@ -70,7 +75,7 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 	data = append(data, escpos.LF()...)
 
 	// Items
-	for _, item := range receipt.Items {
+	for _, item := range input.Items {
 		data = append(data, escpos.Text(item.Name)...)
 		data = append(data, escpos.LF()...)
 
@@ -80,9 +85,11 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 			formatRupiah(item.UnitPrice),
 		)
 
+		total := itemTotal(item)
+
 		priceLine := formatLeftRight(
 			itemLine,
-			formatRupiah(item.SubTotal),
+			formatRupiah(total),
 			r.Width,
 		)
 
@@ -94,58 +101,72 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 	data = append(data, escpos.Text(r.separator("-"))...)
 	data = append(data, escpos.LF()...)
 
+	subtotal := calculateSubtotal(input)
+
 	data = append(
 		data,
 		escpos.Text(
 			formatLeftRight(
 				"Subtotal",
-				formatRupiah(receipt.Summary.SubTotal),
+				formatRupiah(subtotal),
 				r.Width,
 			),
 		)...,
 	)
 	data = append(data, escpos.LF()...)
 
-	if receipt.Summary.Discount > 0 {
+	if input.Summary.Discount > 0 {
 		data = append(
 			data,
 			escpos.Text(
 				formatLeftRight(
 					"Diskon",
-					formatRupiah(receipt.Summary.Discount),
+					formatRupiah(input.Summary.Discount),
 					r.Width,
 				),
 			)...,
 		)
+
 		data = append(data, escpos.LF()...)
 	}
 
-	if receipt.Summary.Tax > 0 {
+	if input.Summary.Tax > 0 {
 		data = append(
 			data,
 			escpos.Text(
 				formatLeftRight(
 					"Pajak",
-					formatRupiah(receipt.Summary.Tax),
+					formatRupiah(input.Summary.Tax),
 					r.Width,
 				),
 			)...,
 		)
+
 		data = append(data, escpos.LF()...)
 	}
 
-	if receipt.Summary.ServiceCharge > 0 {
+	if input.Summary.ServiceCharge > 0 {
 		data = append(
 			data,
 			escpos.Text(
 				formatLeftRight(
 					"Biaya Layanan",
-					formatRupiah(receipt.Summary.ServiceCharge),
+					formatRupiah(input.Summary.ServiceCharge),
 					r.Width,
 				),
 			)...,
 		)
+
 		data = append(data, escpos.LF()...)
+	}
+
+	total := input.Summary.Total
+
+	if total == 0 {
+		total = subtotal -
+			input.Summary.Discount +
+			input.Summary.Tax +
+			input.Summary.ServiceCharge
 	}
 
 	data = append(data, escpos.Bold(true)...)
@@ -155,30 +176,31 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 		escpos.Text(
 			formatLeftRight(
 				"TOTAL",
-				formatRupiah(receipt.Summary.Total),
+				formatRupiah(total),
 				r.Width,
 			),
 		)...,
 	)
-	data = append(data, escpos.LF()...)
 
+	data = append(data, escpos.LF()...)
 	data = append(data, escpos.Bold(false)...)
 
 	// Payment
 	data = append(data, escpos.Text(r.separator("-"))...)
 	data = append(data, escpos.LF()...)
 
-	if receipt.Payment.Method != "" {
+	if input.Payment.Method != "" {
 		data = append(
 			data,
 			escpos.Text(
 				formatLeftRight(
 					"Metode",
-					receipt.Payment.Method,
+					input.Payment.Method,
 					r.Width,
 				),
 			)...,
 		)
+
 		data = append(data, escpos.LF()...)
 	}
 
@@ -187,23 +209,31 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 		escpos.Text(
 			formatLeftRight(
 				"Bayar",
-				formatRupiah(receipt.Payment.Paid),
+				formatRupiah(input.Payment.Paid),
 				r.Width,
 			),
 		)...,
 	)
+
 	data = append(data, escpos.LF()...)
+
+	change := input.Payment.Change
+
+	if change == 0 {
+		change = input.Payment.Paid - total
+	}
 
 	data = append(
 		data,
 		escpos.Text(
 			formatLeftRight(
 				"Kembali",
-				formatRupiah(receipt.Payment.Change),
+				formatRupiah(change),
 				r.Width,
 			),
 		)...,
 	)
+
 	data = append(data, escpos.LF()...)
 
 	// Footer
@@ -211,10 +241,13 @@ func (r *Renderer) Render(receipt Receipt) []byte {
 	data = append(data, escpos.LF()...)
 	data = append(data, escpos.LF()...)
 
-	if receipt.Footer.Message != "" {
+	if input.Footer.Message != "" {
 		data = append(data, escpos.AlignCenter()...)
 		data = append(data, escpos.Bold(true)...)
-		data = append(data, escpos.Text(receipt.Footer.Message)...)
+		data = append(
+			data,
+			escpos.Text(input.Footer.Message)...,
+		)
 		data = append(data, escpos.LF()...)
 		data = append(data, escpos.Bold(false)...)
 	}
@@ -229,8 +262,22 @@ func (r *Renderer) separator(character string) string {
 }
 
 func formatLeftRight(left, right string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+
+	if len(right) >= width {
+		return right[:width]
+	}
+
 	if len(left)+len(right) >= width {
-		return left + " " + right
+		maxLeft := width - len(right)
+
+		if maxLeft <= 0 {
+			return right
+		}
+
+		return truncate(left, maxLeft) + right
 	}
 
 	spaces := width - len(left) - len(right)
@@ -251,18 +298,26 @@ func formatRupiah(amount int64) string {
 	}
 
 	digits := []rune(fmt.Sprintf("%d", amount))
+
 	var groups []string
 
 	for len(digits) > 3 {
 		groups = append(
-			[]string{string(digits[len(digits)-3:])},
+			[]string{
+				string(digits[len(digits)-3:]),
+			},
 			groups...,
 		)
 
 		digits = digits[:len(digits)-3]
 	}
 
-	groups = append([]string{string(digits)}, groups...)
+	groups = append(
+		[]string{
+			string(digits),
+		},
+		groups...,
+	)
 
 	return sign + "Rp " + strings.Join(groups, ".")
 }

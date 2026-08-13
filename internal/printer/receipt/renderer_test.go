@@ -5,66 +5,54 @@ import (
 	"testing"
 	"time"
 
+	domainreceipt "pos-system/internal/domain/receipt"
 	"pos-system/internal/printer/escpos"
 )
 
 func TestRenderer(t *testing.T) {
-	transactionTime := time.Date(
-		2026,
-		8,
-		11,
-		19,
-		0,
-		0,
-		0,
-		time.Local,
-	)
-
-	input := Receipt{
-		Store: Store{
+	input := domainreceipt.Receipt{
+		Store: domainreceipt.Store{
 			Name:    "TOKO KASA",
 			Address: "Jl. Contoh No. 123",
 			Phone:   "081234567890",
 		},
 
-		Transaction: Transaction{
+		Transaction: domainreceipt.Transaction{
+			ID:            "TXN-000001",
 			InvoiceNumber: "INV-000001",
-			TimeStamp:     transactionTime,
+			Timestamp:     time.Date(2026, 8, 11, 20, 0, 0, 0, time.Local),
 			Cashier:       "Bizar",
 		},
 
-		Items: []Item{
+		Items: []domainreceipt.Item{
 			{
-				Name:      "Kopi Susu",
+				ProductID: "PROD-001",
 				SKU:       "KOPI-001",
+				Name:      "Kopi Susu",
 				Quantity:  2,
 				UnitPrice: 15000,
-				SubTotal:  30000,
 			},
 			{
-				Name:      "Roti Bakar",
+				ProductID: "PROD-002",
 				SKU:       "ROTI-001",
+				Name:      "Roti Bakar",
 				Quantity:  1,
 				UnitPrice: 12000,
-				SubTotal:  12000,
 			},
 		},
 
-		Summary: Summary{
-			SubTotal:      42000,
-			Discount:      0,
-			Tax:           0,
-			ServiceCharge: 0,
-			Total:         42000,
+		Summary: domainreceipt.Summary{
+			Subtotal: 42000,
+			Total:    42000,
 		},
 
-		Payment: Payment{
+		Payment: domainreceipt.Payment{
 			Method: "CASH",
 			Paid:   50000,
 			Change: 8000,
 		},
 
-		Footer: Footer{
+		Footer: domainreceipt.Footer{
 			Message: "TERIMA KASIH",
 		},
 	}
@@ -77,7 +65,9 @@ func TestRenderer(t *testing.T) {
 	}
 
 	if !bytes.HasPrefix(output, escpos.Initialize()) {
-		t.Fatal("receipt does not start with ESC/POS initialize command")
+		t.Fatal(
+			"receipt does not start with ESC/POS initialize command",
+		)
 	}
 
 	expectedTexts := []string{
@@ -85,6 +75,7 @@ func TestRenderer(t *testing.T) {
 		"Jl. Contoh No. 123",
 		"081234567890",
 		"INV-000001",
+		"11/08/2026 20:00:00",
 		"Kasir: Bizar",
 		"Kopi Susu",
 		"Roti Bakar",
@@ -103,5 +94,23 @@ func TestRenderer(t *testing.T) {
 				expected,
 			)
 		}
+	}
+}
+
+func TestRendererEmptyReceipt(t *testing.T) {
+	renderer := NewRenderer()
+
+	output := renderer.Render(
+		domainreceipt.Receipt{},
+	)
+
+	if len(output) == 0 {
+		t.Fatal("renderer returned empty output for empty receipt")
+	}
+
+	if !bytes.HasPrefix(output, escpos.Initialize()) {
+		t.Fatal(
+			"empty receipt does not start with ESC/POS initialize command",
+		)
 	}
 }

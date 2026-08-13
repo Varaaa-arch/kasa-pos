@@ -7,21 +7,22 @@ import (
 	"net/http"
 	"os"
 
+	domainreceipt "pos-system/internal/domain/receipt"
 	"pos-system/internal/printer/logging"
-	"pos-system/internal/printer/receipt"
+	printerreceipt "pos-system/internal/printer/receipt"
 	"pos-system/internal/printer/transport"
 )
 
 type Handler struct {
 	Printer    transport.Printer
-	Renderer   *receipt.Renderer
+	Renderer   *printerreceipt.Renderer
 	DevicePath string
 	Logger     *logging.Logger
 }
 
 func NewHandler(
 	printer transport.Printer,
-	renderer *receipt.Renderer,
+	renderer *printerreceipt.Renderer,
 	devicePath string,
 	logger *logging.Logger,
 ) *Handler {
@@ -34,15 +35,16 @@ func NewHandler(
 }
 
 type PrintRequest struct {
-	Store       receipt.Store    `json:"store"`
-	Transaction PrintTransaction `json:"transaction"`
-	Items       []receipt.Item   `json:"items"`
-	Summary     receipt.Summary  `json:"summary"`
-	Payment     receipt.Payment  `json:"payment"`
-	Footer      receipt.Footer   `json:"footer"`
+	Store       domainreceipt.Store   `json:"store"`
+	Transaction PrintTransaction      `json:"transaction"`
+	Items       []domainreceipt.Item  `json:"items"`
+	Summary     domainreceipt.Summary `json:"summary"`
+	Payment     domainreceipt.Payment `json:"payment"`
+	Footer      domainreceipt.Footer  `json:"footer"`
 }
 
 type PrintTransaction struct {
+	ID            string `json:"id"`
 	InvoiceNumber string `json:"invoice_number"`
 	Cashier       string `json:"cashier"`
 }
@@ -58,7 +60,10 @@ type StatusResponse struct {
 	Connected bool   `json:"connected"`
 }
 
-func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Print(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	if r.Method != http.MethodPost {
 		http.Error(
 			w,
@@ -68,14 +73,22 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Logger.Printf("print request received")
+	if h.Logger != nil {
+		h.Logger.Printf("print request received")
+	}
 
 	var request PrintRequest
 
 	decoder := json.NewDecoder(r.Body)
 
 	if err := decoder.Decode(&request); err != nil {
-		h.Logger.Printf("invalid request body: %v", err)
+		if h.Logger != nil {
+			h.Logger.Printf(
+				"invalid print request: %v",
+				err,
+			)
+		}
+
 		http.Error(
 			w,
 			"invalid request body",
@@ -86,7 +99,13 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 
 	jobID, err := generateJobID()
 	if err != nil {
-		h.Logger.Printf("failed to generate job ID: %v", err)
+		if h.Logger != nil {
+			h.Logger.Printf(
+				"failed to generate job ID: %v",
+				err,
+			)
+		}
+
 		http.Error(
 			w,
 			"failed to generate print job id",
@@ -95,12 +114,18 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Logger.Printf("print job created: job_id=%s", jobID)
+	if h.Logger != nil {
+		h.Logger.Printf(
+			"print job created: job_id=%s",
+			jobID,
+		)
+	}
 
-	transaction := receipt.Receipt{
+	input := domainreceipt.Receipt{
 		Store: request.Store,
 
-		Transaction: receipt.Transaction{
+		Transaction: domainreceipt.Transaction{
+			ID:            request.Transaction.ID,
 			InvoiceNumber: request.Transaction.InvoiceNumber,
 			Cashier:       request.Transaction.Cashier,
 		},
@@ -111,22 +136,27 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		Footer:  request.Footer,
 	}
 
-	h.Logger.Printf(
-		"print started: job_id=%s invoice=%s",
-		jobID,
-		transaction.Transaction.InvoiceNumber,
-	)
+	if h.Logger != nil {
+		h.Logger.Printf(
+			"print started: job_id=%s invoice=%s",
+			jobID,
+			input.Transaction.InvoiceNumber,
+		)
+	}
 
-	if err := receipt.Print(
+	if err := printerreceipt.Print(
 		h.Printer,
 		h.Renderer,
-		transaction,
+		input,
 	); err != nil {
-		h.Logger.Printf(
-			"print failed: job_id=%s error=%v",
-			jobID,
-			err,
-		)
+		if h.Logger != nil {
+			h.Logger.Printf(
+				"print failed: job_id=%s error=%v",
+				jobID,
+				err,
+			)
+		}
+
 		http.Error(
 			w,
 			"failed to print receipt",
@@ -135,11 +165,13 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.Logger.Printf(
-		"print completed: job_id=%s invoice=%s",
-		jobID,
-		transaction.Transaction.InvoiceNumber,
-	)
+	if h.Logger != nil {
+		h.Logger.Printf(
+			"print completed: job_id=%s invoice=%s",
+			jobID,
+			input.Transaction.InvoiceNumber,
+		)
+	}
 
 	w.Header().Set(
 		"Content-Type",
@@ -156,7 +188,10 @@ func (h *Handler) Print(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Status(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	if r.Method != http.MethodGet {
 		http.Error(
 			w,
@@ -185,9 +220,7 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return
-	}
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func generateJobID() (string, error) {

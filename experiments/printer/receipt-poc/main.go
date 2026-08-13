@@ -5,7 +5,8 @@ import (
 	"log"
 	"time"
 
-	"pos-system/internal/printer/receipt"
+	domainreceipt "pos-system/internal/domain/receipt"
+	printerreceipt "pos-system/internal/printer/receipt"
 	"pos-system/internal/printer/transport"
 )
 
@@ -19,69 +20,63 @@ func main() {
 	}
 	defer printer.Close()
 
-	transaction := receipt.Receipt{
-		Store: receipt.Store{
+	transaction := domainreceipt.Receipt{
+		Store: domainreceipt.Store{
 			Name:    "TOKO KASA",
 			Address: "Jl. Contoh No. 123",
 			Phone:   "081234567890",
 		},
 
-		Transaction: receipt.Transaction{
+		Transaction: domainreceipt.Transaction{
+			ID:            "TXN-000001",
 			InvoiceNumber: "INV-000001",
-			TimeStamp:     time.Now(),
+			Timestamp:     time.Now(),
 			Cashier:       "Bizar",
 		},
 
-		Items: []receipt.Item{
+		Items: []domainreceipt.Item{
 			{
-				Name:      "Kopi Susu",
+				ProductID: "PROD-001",
 				SKU:       "KOPI-001",
+				Name:      "Kopi Susu",
 				Quantity:  2,
 				UnitPrice: 15000,
-				SubTotal:  30000,
 			},
 			{
-				Name:      "Roti Bakar",
+				ProductID: "PROD-002",
 				SKU:       "ROTI-001",
+				Name:      "Roti Bakar",
 				Quantity:  1,
 				UnitPrice: 12000,
-				SubTotal:  12000,
 			},
 			{
-				Name:      "Air Mineral",
+				ProductID: "PROD-003",
 				SKU:       "AIR-001",
+				Name:      "Air Mineral",
 				Quantity:  1,
 				UnitPrice: 5000,
-				SubTotal:  5000,
 			},
 		},
 
-		Summary: receipt.Summary{
-			SubTotal:      47000,
-			Discount:      0,
-			Tax:           0,
-			ServiceCharge: 0,
-			Total:         47000,
+		Summary: domainreceipt.Summary{
+			Subtotal: 47000,
+			Total:    47000,
 		},
 
-		Payment: receipt.Payment{
+		Payment: domainreceipt.Payment{
 			Method: "CASH",
 			Paid:   50000,
 			Change: 3000,
 		},
 
-		Footer: receipt.Footer{
-			Message: "TERIMA KASIH",
+		Footer: domainreceipt.Footer{
+			Message: "DAY 3 DOMAIN RECEIPT",
 		},
 	}
 
-	renderer := receipt.NewRenderer()
+	renderer := printerreceipt.NewRenderer()
 
 	data := renderer.Render(transaction)
-
-	// Debug information.
-	fmt.Printf("Sending %d bytes to printer\n", len(data))
-	fmt.Printf("ESC/POS HEX:\n% X\n", data)
 
 	n, err := printer.Write(data)
 	if err != nil {

@@ -3,13 +3,16 @@ package receipt
 import (
 	"errors"
 	"testing"
+
+	domainreceipt "pos-system/internal/domain/receipt"
 )
 
 type failingPrinter struct {
 	openErr  error
 	writeErr error
 	closeErr error
-	closed   bool
+
+	closed bool
 }
 
 func (p *failingPrinter) Open() error {
@@ -26,7 +29,98 @@ func (p *failingPrinter) Write(data []byte) (int, error) {
 
 func (p *failingPrinter) Close() error {
 	p.closed = true
+
 	return p.closeErr
+}
+
+func TestPrintOpenError(t *testing.T) {
+	expectedErr := errors.New("printer connection failed")
+
+	printer := &failingPrinter{
+		openErr: expectedErr,
+	}
+
+	renderer := NewRenderer()
+
+	err := Print(
+		printer,
+		renderer,
+		domainreceipt.Receipt{},
+	)
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf(
+			"Print() error = %v, want %v",
+			err,
+			expectedErr,
+		)
+	}
+}
+
+func TestPrintWriteError(t *testing.T) {
+	expectedErr := errors.New("printer write failed")
+
+	printer := &failingPrinter{
+		writeErr: expectedErr,
+	}
+
+	renderer := NewRenderer()
+
+	err := Print(
+		printer,
+		renderer,
+		domainreceipt.Receipt{},
+	)
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf(
+			"Print() error = %v, want %v",
+			err,
+			expectedErr,
+		)
+	}
+}
+
+func TestPrintSuccess(t *testing.T) {
+	printer := &failingPrinter{}
+
+	renderer := NewRenderer()
+
+	err := Print(
+		printer,
+		renderer,
+		domainreceipt.Receipt{},
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"Print() returned unexpected error: %v",
+			err,
+		)
+	}
+}
+
+func TestPrintClosesPrinter(t *testing.T) {
+	printer := &failingPrinter{}
+
+	renderer := NewRenderer()
+
+	err := Print(
+		printer,
+		renderer,
+		domainreceipt.Receipt{},
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"Print() returned unexpected error: %v",
+			err,
+		)
+	}
+
+	if !printer.closed {
+		t.Fatal("expected printer to be closed")
+	}
 }
 
 type retryPrinter struct {
@@ -54,104 +148,15 @@ func (p *retryPrinter) Close() error {
 	return nil
 }
 
-func TestPrintOpenError(t *testing.T) {
-	expectedErr := errors.New("printer connection failed")
-
-	printer := &failingPrinter{
-		openErr: expectedErr,
-	}
-
-	renderer := NewRenderer()
-
-	err := Print(
-		printer,
-		renderer,
-		Receipt{},
-	)
-
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf(
-			"Print() error = %v, want %v",
-			err,
-			expectedErr,
-		)
-	}
-}
-
-func TestPrintWriteError(t *testing.T) {
-	expectedErr := errors.New("printer write failed")
-
-	printer := &failingPrinter{
-		writeErr: expectedErr,
-	}
-
-	renderer := NewRenderer()
-
-	err := Print(
-		printer,
-		renderer,
-		Receipt{},
-	)
-
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf(
-			"Print() error = %v, want %v",
-			err,
-			expectedErr,
-		)
-	}
-}
-
-func TestPrintSuccess(t *testing.T) {
-	printer := &failingPrinter{}
-
-	renderer := NewRenderer()
-
-	err := Print(
-		printer,
-		renderer,
-		Receipt{},
-	)
-
-	if err != nil {
-		t.Fatalf(
-			"Print() returned unexpected error: %v",
-			err,
-		)
-	}
-}
-
-func TestPrintClosesPrinter(t *testing.T) {
-	printer := &failingPrinter{}
-
-	renderer := NewRenderer()
-
-	err := Print(
-		printer,
-		renderer,
-		Receipt{},
-	)
-
-	if err != nil {
-		t.Fatalf(
-			"Print() returned unexpected error: %v",
-			err,
-		)
-	}
-
-	if !printer.closed {
-		t.Fatal("expected printer to be closed")
-	}
-}
-
 func TestPrintRetriesOpen(t *testing.T) {
 	printer := &retryPrinter{}
+
 	renderer := NewRenderer()
 
 	err := Print(
 		printer,
 		renderer,
-		Receipt{},
+		domainreceipt.Receipt{},
 	)
 
 	if err != nil {

@@ -1,6 +1,8 @@
 package receipt
 
 import (
+	domainreceipt "pos-system/internal/domain/receipt"
+
 	"pos-system/internal/printer/retry"
 	"pos-system/internal/printer/transport"
 )
@@ -8,7 +10,7 @@ import (
 func Print(
 	printer transport.Printer,
 	renderer *Renderer,
-	receipt Receipt,
+	input domainreceipt.Receipt,
 ) error {
 	config := retry.DefaultConfig()
 
@@ -25,7 +27,7 @@ func Print(
 
 	defer printer.Close()
 
-	data := renderer.Render(receipt)
+	data := renderer.Render(input)
 
 	_, err = printer.Write(data)
 	if err != nil {

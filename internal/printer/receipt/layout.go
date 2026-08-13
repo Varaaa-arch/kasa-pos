@@ -3,6 +3,8 @@ package receipt
 import (
 	"fmt"
 	"strings"
+
+	domainreceipt "pos-system/internal/domain/receipt"
 )
 
 const ReceiptWidth = 32
@@ -42,12 +44,10 @@ func (l Layout) LeftRight(left, right string) string {
 		return ""
 	}
 
-	// Right side alone is wider than the receipt.
 	if len(right) >= l.Width {
 		return truncate(right, l.Width)
 	}
 
-	// Left + right don't fit.
 	if len(left)+len(right) >= l.Width {
 		maxLeft := l.Width - len(right)
 
@@ -63,24 +63,21 @@ func (l Layout) LeftRight(left, right string) string {
 	return left + strings.Repeat(" ", spaces) + right
 }
 
-func (l Layout) Item(item Item) []string {
+func (l Layout) Item(item domainreceipt.Item) []string {
 	var lines []string
 
-	// Product name.
 	lines = append(
 		lines,
 		wrapText(item.Name, l.Width)...,
 	)
 
-	// Quantity × unit price.
 	qtyPrice := fmt.Sprintf(
 		"%d x Rp%s",
 		item.Quantity,
 		formatMoney(item.UnitPrice),
 	)
 
-	// Subtotal.
-	total := "Rp" + formatMoney(item.Total())
+	total := "Rp" + formatMoney(itemTotal(item))
 
 	lines = append(
 		lines,
@@ -90,13 +87,10 @@ func (l Layout) Item(item Item) []string {
 	return lines
 }
 
-func (l Layout) Render(r Receipt) []string {
+func (l Layout) Render(r domainreceipt.Receipt) []string {
 	var lines []string
 
-	// ==============================
 	// Header
-	// ==============================
-
 	if r.Store.Name != "" {
 		lines = append(
 			lines,
@@ -120,10 +114,7 @@ func (l Layout) Render(r Receipt) []string {
 
 	lines = append(lines, "")
 
-	// ==============================
-	// Transaction information
-	// ==============================
-
+	// Transaction
 	if r.Transaction.InvoiceNumber != "" {
 		lines = append(
 			lines,
@@ -134,11 +125,13 @@ func (l Layout) Render(r Receipt) []string {
 		)
 	}
 
-	if !r.Transaction.TimeStamp.IsZero() {
+	if !r.Transaction.Timestamp.IsZero() {
 		lines = append(
 			lines,
 			l.LeftRight(
-				"Date    : "+r.Transaction.TimeStamp.Format("02/01/2006 15:04"),
+				"Date    : "+r.Transaction.Timestamp.Format(
+					"02/01/2006 15:04",
+				),
 				"",
 			),
 		)
@@ -156,10 +149,7 @@ func (l Layout) Render(r Receipt) []string {
 
 	lines = append(lines, "")
 
-	// ==============================
 	// Items
-	// ==============================
-
 	lines = append(
 		lines,
 		l.Separator('-'),
@@ -174,22 +164,19 @@ func (l Layout) Render(r Receipt) []string {
 		lines = append(lines, "")
 	}
 
-	// ==============================
 	// Summary
-	// ==============================
-
 	lines = append(
 		lines,
 		l.Separator('-'),
 	)
 
-	subtotal := "Rp" + formatMoney(r.Subtotal())
+	subtotal := calculateSubtotal(r)
 
 	lines = append(
 		lines,
 		l.LeftRight(
 			"Subtotal",
-			subtotal,
+			"Rp"+formatMoney(subtotal),
 		),
 	)
 
@@ -226,7 +213,10 @@ func (l Layout) Render(r Receipt) []string {
 	total := r.Summary.Total
 
 	if total == 0 {
-		total = r.Subtotal()
+		total = subtotal -
+			r.Summary.Discount +
+			r.Summary.Tax +
+			r.Summary.ServiceCharge
 	}
 
 	lines = append(
@@ -237,10 +227,7 @@ func (l Layout) Render(r Receipt) []string {
 		),
 	)
 
-	// ==============================
 	// Payment
-	// ==============================
-
 	lines = append(
 		lines,
 		l.Separator('-'),
@@ -264,7 +251,11 @@ func (l Layout) Render(r Receipt) []string {
 		),
 	)
 
-	change := r.Change()
+	change := r.Payment.Change
+
+	if change == 0 {
+		change = r.Payment.Paid - total
+	}
 
 	lines = append(
 		lines,
@@ -274,10 +265,7 @@ func (l Layout) Render(r Receipt) []string {
 		),
 	)
 
-	// ==============================
 	// Footer
-	// ==============================
-
 	lines = append(
 		lines,
 		l.Separator('-'),
@@ -285,6 +273,7 @@ func (l Layout) Render(r Receipt) []string {
 
 	if r.Footer.Message != "" {
 		lines = append(lines, "")
+
 		lines = append(
 			lines,
 			l.Center(r.Footer.Message),
@@ -292,6 +281,24 @@ func (l Layout) Render(r Receipt) []string {
 	}
 
 	return lines
+}
+
+func itemTotal(item domainreceipt.Item) int64 {
+	if item.Quantity <= 0 || item.UnitPrice <= 0 {
+		return 0
+	}
+
+	return int64(item.Quantity) * item.UnitPrice
+}
+
+func calculateSubtotal(r domainreceipt.Receipt) int64 {
+	var total int64
+
+	for _, item := range r.Items {
+		total += itemTotal(item)
+	}
+
+	return total
 }
 
 func truncate(text string, width int) string {
@@ -323,8 +330,6 @@ func wrapText(text string, width int) []string {
 	current := ""
 
 	for _, word := range words {
-		// Kalau satu kata lebih panjang dari lebar printer,
-		// pecah menjadi beberapa bagian.
 		if len(word) > width {
 			if current != "" {
 				lines = append(lines, current)
@@ -332,7 +337,11 @@ func wrapText(text string, width int) []string {
 			}
 
 			for len(word) > width {
-				lines = append(lines, word[:width])
+				lines = append(
+					lines,
+					word[:width],
+				)
+
 				word = word[width:]
 			}
 
