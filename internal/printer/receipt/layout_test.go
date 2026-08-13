@@ -439,19 +439,52 @@ func TestItemLayoutLargePrice(t *testing.T) {
 
 	lines := layout.Item(item)
 
-	if len(lines) != 2 {
+	// Product name + quantity/price + subtotal.
+	// Large monetary values may require 3 lines.
+	if len(lines) != 3 {
 		t.Fatalf(
-			"expected 2 lines, got %d: %#v",
+			"expected 3 lines, got %d: %#v",
 			len(lines),
 			lines,
 		)
 	}
 
-	if len(lines[1]) > layout.Width {
+	for i, line := range lines {
+		if len(line) > layout.Width {
+			t.Fatalf(
+				"line %d exceeds printer width: %d > %d: %q",
+				i,
+				len(line),
+				layout.Width,
+				line,
+			)
+		}
+	}
+
+	if lines[0] != "Laptop Gaming" {
 		t.Fatalf(
-			"item price line exceeds width: %d > %d",
-			len(lines[1]),
-			layout.Width,
+			"unexpected product name: %q",
+			lines[0],
+		)
+	}
+
+	if !strings.Contains(
+		lines[1],
+		"99 x Rp12.500.000",
+	) {
+		t.Fatalf(
+			"unit price line missing:\n%q",
+			lines[1],
+		)
+	}
+
+	if !strings.Contains(
+		lines[2],
+		"Rp1.237.500.000",
+	) {
+		t.Fatalf(
+			"subtotal line missing:\n%q",
+			lines[2],
 		)
 	}
 }
@@ -873,4 +906,241 @@ func formatQuantity(quantity int) string {
 			"",
 		),
 	)
+}
+
+func TestLayoutEngineWidthContract(t *testing.T) {
+	layout := NewLayout(32)
+
+	tests := []struct {
+		name string
+		got  string
+	}{
+		{
+			name: "left",
+			got:  layout.Left("TOKO KASA"),
+		},
+		{
+			name: "center",
+			got:  layout.Center("TOKO KASA"),
+		},
+		{
+			name: "right",
+			got:  layout.Right("Rp47.000"),
+		},
+		{
+			name: "left-right",
+			got:  layout.LeftRight("Subtotal", "Rp47.000"),
+		},
+		{
+			name: "separator",
+			got:  layout.Separator('-'),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if len(tt.got) != layout.Width {
+				t.Fatalf(
+					"expected width %d, got %d: %q",
+					layout.Width,
+					len(tt.got),
+					tt.got,
+				)
+			}
+		})
+	}
+}
+
+func TestLayoutEngineWrappingWidth(t *testing.T) {
+	layout := NewLayout(32)
+
+	text := "Ini adalah nama produk yang sangat panjang dan harus di-wrap"
+
+	lines := wrapText(text, layout.Width)
+
+	if len(lines) < 2 {
+		t.Fatalf(
+			"expected text to wrap, got %d line(s): %v",
+			len(lines),
+			lines,
+		)
+	}
+
+	for i, line := range lines {
+		if len(line) > layout.Width {
+			t.Fatalf(
+				"line %d exceeds width: %d > %d: %q",
+				i,
+				len(line),
+				layout.Width,
+				line,
+			)
+		}
+	}
+}
+
+func TestLayoutMargins(t *testing.T) {
+	layout := NewLayoutWithMargins(
+		32,
+		2,
+		2,
+	)
+
+	if layout.ContentWidth() != 28 {
+		t.Fatalf(
+			"expected content width 28, got %d",
+			layout.ContentWidth(),
+		)
+	}
+
+	tests := []struct {
+		name string
+		got  string
+	}{
+		{
+			name: "left",
+			got:  layout.Left("TOKO KASA"),
+		},
+		{
+			name: "center",
+			got:  layout.Center("TOKO KASA"),
+		},
+		{
+			name: "right",
+			got:  layout.Right("Rp47.000"),
+		},
+		{
+			name: "left-right",
+			got: layout.LeftRight(
+				"Subtotal",
+				"Rp47.000",
+			),
+		},
+		{
+			name: "separator",
+			got: layout.withMargins(
+				layout.Separator('-')[:layout.ContentWidth()],
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if len(tt.got) != layout.Width {
+				t.Fatalf(
+					"expected total width %d, got %d: %q",
+					layout.Width,
+					len(tt.got),
+					tt.got,
+				)
+			}
+
+			if !strings.HasPrefix(
+				tt.got,
+				"  ",
+			) {
+				t.Fatalf(
+					"expected 2-character left margin: %q",
+					tt.got,
+				)
+			}
+
+			if !strings.HasSuffix(
+				tt.got,
+				"  ",
+			) {
+				t.Fatalf(
+					"expected 2-character right margin: %q",
+					tt.got,
+				)
+			}
+		})
+	}
+}
+
+func TestLayoutColumnsWithMargins(t *testing.T) {
+	layout := NewLayoutWithMargins(
+		32,
+		2,
+		2,
+	)
+
+	got := layout.LeftRight(
+		"Subtotal",
+		"Rp47.000",
+	)
+
+	if len(got) != 32 {
+		t.Fatalf(
+			"expected width 32, got %d: %q",
+			len(got),
+			got,
+		)
+	}
+
+	content := got[layout.LeftMargin : layout.Width-layout.RightMargin]
+
+	if !strings.HasPrefix(content, "Subtotal") {
+		t.Fatalf(
+			"left column incorrect: %q",
+			content,
+		)
+	}
+
+	if !strings.HasSuffix(content, "Rp47.000") {
+		t.Fatalf(
+			"right column incorrect: %q",
+			content,
+		)
+	}
+}
+
+func TestLayoutPadding(t *testing.T) {
+	layout := NewLayoutWithMargins(32, 2, 2)
+
+	got := layout.Padding(
+		2,
+		2,
+		"TOKO KASA",
+	)
+
+	if len(got) != 32 {
+		t.Fatalf(
+			"expected width 32, got %d: %q",
+			len(got),
+			got,
+		)
+	}
+
+	contentStart := layout.LeftMargin + 2
+	contentEnd := contentStart + len("TOKO KASA")
+
+	content := got[contentStart:contentEnd]
+
+	if content != "TOKO KASA" {
+		t.Fatalf(
+			"unexpected padded content: %q",
+			content,
+		)
+	}
+}
+
+func TestBlankLine(t *testing.T) {
+	layout := NewLayoutWithMargins(32, 2, 2)
+
+	got := layout.BlankLine()
+
+	if len(got) != 32 {
+		t.Fatalf(
+			"expected blank line width 32, got %d",
+			len(got),
+		)
+	}
+
+	if strings.TrimSpace(got) != "" {
+		t.Fatalf(
+			"expected blank line, got %q",
+			got,
+		)
+	}
 }

@@ -7,170 +7,311 @@ import (
 	domainreceipt "pos-system/internal/domain/receipt"
 )
 
-const ReceiptWidth = 32
+const (
+	DefaultReceiptWidth = 32
+	DefaultLeftMargin   = 0
+	DefaultRightMargin  = 0
+)
 
 type Layout struct {
-	Width int
+	Width       int
+	LeftMargin  int
+	RightMargin int
 }
 
 func NewLayout(width int) Layout {
 	if width <= 0 {
-		width = ReceiptWidth
+		width = DefaultReceiptWidth
 	}
 
 	return Layout{
-		Width: width,
+		Width:       width,
+		LeftMargin:  DefaultLeftMargin,
+		RightMargin: DefaultRightMargin,
 	}
 }
 
+func NewLayoutWithMargins(
+	width int,
+	leftMargin int,
+	rightMargin int,
+) Layout {
+	if width <= 0 {
+		width = DefaultReceiptWidth
+	}
+
+	if leftMargin < 0 {
+		leftMargin = 0
+	}
+
+	if rightMargin < 0 {
+		rightMargin = 0
+	}
+
+	if leftMargin+rightMargin >= width {
+		leftMargin = 0
+		rightMargin = 0
+	}
+
+	return Layout{
+		Width:       width,
+		LeftMargin:  leftMargin,
+		RightMargin: rightMargin,
+	}
+}
+
+func (l Layout) ContentWidth() int {
+	width := l.Width -
+		l.LeftMargin -
+		l.RightMargin
+
+	if width < 0 {
+		return 0
+	}
+
+	return width
+}
 func (l Layout) Separator(char byte) string {
-	return strings.Repeat(string(char), l.Width)
-}
-
-func (l Layout) Center(text string) string {
-	text = truncate(text, l.Width)
-
-	padding := l.Width - len(text)
-	left := padding / 2
-	right := padding - left
-
-	return strings.Repeat(" ", left) +
-		text +
-		strings.Repeat(" ", right)
-}
-
-func (l Layout) LeftRight(left, right string) string {
 	if l.Width <= 0 {
 		return ""
 	}
 
-	if len(right) >= l.Width {
-		return truncate(right, l.Width)
+	return strings.Repeat(string(char), l.Width)
+}
+
+func (l Layout) withMargins(content string) string {
+	width := l.ContentWidth()
+
+	content = truncate(content, width)
+
+	return strings.Repeat(" ", l.LeftMargin) +
+		content +
+		strings.Repeat(
+			" ",
+			l.RightMargin+(width-len(content)),
+		)
+}
+
+func (l Layout) Center(text string) string {
+	width := l.ContentWidth()
+
+	text = truncate(text, width)
+
+	padding := width - len(text)
+
+	left := padding / 2
+	right := padding - left
+
+	content :=
+		strings.Repeat(" ", left) +
+			text +
+			strings.Repeat(" ", right)
+
+	return l.withMargins(content)
+}
+
+func (l Layout) Left(text string) string {
+	return l.withMargins(text)
+}
+
+func (l Layout) Right(text string) string {
+	width := l.ContentWidth()
+
+	text = truncate(text, width)
+
+	return l.withMargins(
+		padLeft(text, width),
+	)
+}
+
+func (l Layout) LeftRight(left, right string) string {
+	width := l.ContentWidth()
+
+	if width <= 0 {
+		return ""
 	}
 
-	if len(left)+len(right) >= l.Width {
-		maxLeft := l.Width - len(right)
+	left = truncate(left, width)
+	right = truncate(right, width)
+
+	if len(right) >= width {
+		return l.withMargins(right)
+	}
+
+	if len(left)+len(right) >= width {
+		maxLeft := width - len(right)
 
 		if maxLeft <= 0 {
-			return truncate(right, l.Width)
+			return l.withMargins(right)
 		}
 
-		return truncate(left, maxLeft) + right
+		left = truncate(left, maxLeft)
+
+		return l.withMargins(left + right)
 	}
 
-	spaces := l.Width - len(left) - len(right)
+	spaces := width - len(left) - len(right)
 
-	return left + strings.Repeat(" ", spaces) + right
+	content :=
+		left +
+			strings.Repeat(" ", spaces) +
+			right
+
+	return l.withMargins(content)
 }
 
 func (l Layout) Item(item domainreceipt.Item) []string {
 	var lines []string
 
+	// Product name.
 	lines = append(
 		lines,
 		wrapText(item.Name, l.Width)...,
 	)
 
+	// Quantity x unit price.
 	qtyPrice := fmt.Sprintf(
 		"%d x Rp%s",
 		item.Quantity,
 		formatMoney(item.UnitPrice),
 	)
 
+	// Item subtotal.
 	total := "Rp" + formatMoney(itemTotal(item))
+
+	// Normal case:
+	// quantity/unit price + subtotal fit on one line.
+	if len(qtyPrice)+len(total) < l.Width {
+		lines = append(
+			lines,
+			l.LeftRight(
+				qtyPrice,
+				total,
+			),
+		)
+
+		return lines
+	}
+
+	// Large values:
+	// keep quantity/unit price and subtotal on separate lines
+	// instead of corrupting or truncating the values.
+	lines = append(
+		lines,
+		l.Left(qtyPrice),
+	)
 
 	lines = append(
 		lines,
-		l.LeftRight(qtyPrice, total),
+		l.Right(total),
 	)
 
 	return lines
 }
 
-func (l Layout) Render(r domainreceipt.Receipt) []string {
+func (l Layout) Render(input domainreceipt.Receipt) []string {
 	var lines []string
 
-	// Header
-	if r.Store.Name != "" {
+	// =========================
+	// HEADER
+	// =========================
+
+	if input.Store.Name != "" {
 		lines = append(
 			lines,
-			l.Center(r.Store.Name),
+			l.Center(input.Store.Name),
 		)
 	}
 
-	if r.Store.Address != "" {
+	if input.Store.Address != "" {
+		for _, line := range wrapText(
+			input.Store.Address,
+			l.ContentWidth(),
+		) {
+			lines = append(
+				lines,
+				l.Center(line),
+			)
+		}
+	}
+
+	if input.Store.Phone != "" {
 		lines = append(
 			lines,
-			l.Center(r.Store.Address),
+			l.Center(input.Store.Phone),
 		)
 	}
 
-	if r.Store.Phone != "" {
-		lines = append(
-			lines,
-			l.Center(r.Store.Phone),
-		)
-	}
-
-	lines = append(lines, "")
-
-	// Transaction
-	if r.Transaction.InvoiceNumber != "" {
-		lines = append(
-			lines,
-			l.LeftRight(
-				"Invoice : "+r.Transaction.InvoiceNumber,
-				"",
-			),
-		)
-	}
-
-	if !r.Transaction.Timestamp.IsZero() {
-		lines = append(
-			lines,
-			l.LeftRight(
-				"Date    : "+r.Transaction.Timestamp.Format(
-					"02/01/2006 15:04",
-				),
-				"",
-			),
-		)
-	}
-
-	if r.Transaction.Cashier != "" {
-		lines = append(
-			lines,
-			l.LeftRight(
-				"Kasir   : "+r.Transaction.Cashier,
-				"",
-			),
-		)
-	}
-
-	lines = append(lines, "")
-
-	// Items
 	lines = append(
 		lines,
-		l.Separator('-'),
+		l.BlankLine(),
+		l.SeparatorLine('='),
 	)
 
-	for _, item := range r.Items {
+	// =========================
+	// TRANSACTION
+	// =========================
+
+	if input.Transaction.InvoiceNumber != "" {
+		lines = append(
+			lines,
+			l.Left(
+				"Invoice: "+input.Transaction.InvoiceNumber,
+			),
+		)
+	}
+
+	if !input.Transaction.Timestamp.IsZero() {
+		lines = append(
+			lines,
+			l.Left(
+				input.Transaction.Timestamp.Format(
+					"02/01/2006 15:04:05",
+				),
+			),
+		)
+	}
+
+	if input.Transaction.Cashier != "" {
+		lines = append(
+			lines,
+			l.Left(
+				"Kasir: "+input.Transaction.Cashier,
+			),
+		)
+	}
+
+	lines = append(
+		lines,
+		l.SeparatorLine('-'),
+	)
+
+	// =========================
+	// ITEMS
+	// =========================
+
+	for _, item := range input.Items {
 		lines = append(
 			lines,
 			l.Item(item)...,
 		)
 
-		lines = append(lines, "")
+		lines = append(
+			lines,
+			l.BlankLine(),
+		)
 	}
 
-	// Summary
+	// =========================
+	// SUMMARY
+	// =========================
+
 	lines = append(
 		lines,
-		l.Separator('-'),
+		l.SeparatorLine('-'),
 	)
 
-	subtotal := calculateSubtotal(r)
+	subtotal := calculateSubtotal(input)
 
 	lines = append(
 		lines,
@@ -180,43 +321,46 @@ func (l Layout) Render(r domainreceipt.Receipt) []string {
 		),
 	)
 
-	if r.Summary.Discount != 0 {
+	if input.Summary.Discount != 0 {
 		lines = append(
 			lines,
 			l.LeftRight(
-				"Discount",
-				"Rp"+formatMoney(r.Summary.Discount),
+				"Diskon",
+				"Rp"+formatMoney(input.Summary.Discount),
 			),
 		)
 	}
 
-	if r.Summary.Tax != 0 {
+	if input.Summary.Tax != 0 {
 		lines = append(
 			lines,
 			l.LeftRight(
-				"Tax",
-				"Rp"+formatMoney(r.Summary.Tax),
+				"Pajak",
+				"Rp"+formatMoney(input.Summary.Tax),
 			),
 		)
 	}
 
-	if r.Summary.ServiceCharge != 0 {
+	if input.Summary.ServiceCharge != 0 {
 		lines = append(
 			lines,
 			l.LeftRight(
-				"Service",
-				"Rp"+formatMoney(r.Summary.ServiceCharge),
+				"Biaya Layanan",
+				"Rp"+formatMoney(
+					input.Summary.ServiceCharge,
+				),
 			),
 		)
 	}
 
-	total := r.Summary.Total
+	total := input.Summary.Total
 
 	if total == 0 {
-		total = subtotal -
-			r.Summary.Discount +
-			r.Summary.Tax +
-			r.Summary.ServiceCharge
+		total =
+			subtotal -
+				input.Summary.Discount +
+				input.Summary.Tax +
+				input.Summary.ServiceCharge
 	}
 
 	lines = append(
@@ -227,18 +371,21 @@ func (l Layout) Render(r domainreceipt.Receipt) []string {
 		),
 	)
 
-	// Payment
+	// =========================
+	// PAYMENT
+	// =========================
+
 	lines = append(
 		lines,
-		l.Separator('-'),
+		l.SeparatorLine('-'),
 	)
 
-	if r.Payment.Method != "" {
+	if input.Payment.Method != "" {
 		lines = append(
 			lines,
 			l.LeftRight(
 				"Metode",
-				r.Payment.Method,
+				input.Payment.Method,
 			),
 		)
 	}
@@ -247,14 +394,14 @@ func (l Layout) Render(r domainreceipt.Receipt) []string {
 		lines,
 		l.LeftRight(
 			"Bayar",
-			"Rp"+formatMoney(r.Payment.Paid),
+			"Rp"+formatMoney(input.Payment.Paid),
 		),
 	)
 
-	change := r.Payment.Change
+	change := input.Payment.Change
 
 	if change == 0 {
-		change = r.Payment.Paid - total
+		change = input.Payment.Paid - total
 	}
 
 	lines = append(
@@ -265,22 +412,40 @@ func (l Layout) Render(r domainreceipt.Receipt) []string {
 		),
 	)
 
-	// Footer
+	// =========================
+	// FOOTER
+	// =========================
+
 	lines = append(
 		lines,
-		l.Separator('-'),
+		l.SeparatorLine('-'),
+		l.BlankLine(),
 	)
 
-	if r.Footer.Message != "" {
-		lines = append(lines, "")
-
-		lines = append(
-			lines,
-			l.Center(r.Footer.Message),
-		)
+	if input.Footer.Message != "" {
+		for _, line := range wrapText(
+			input.Footer.Message,
+			l.ContentWidth(),
+		) {
+			lines = append(
+				lines,
+				l.Center(line),
+			)
+		}
 	}
 
 	return lines
+}
+
+func (l Layout) SeparatorLine(char byte) string {
+	width := l.ContentWidth()
+
+	line := strings.Repeat(
+		string(char),
+		width,
+	)
+
+	return l.withMargins(line)
 }
 
 func itemTotal(item domainreceipt.Item) int64 {
@@ -291,10 +456,12 @@ func itemTotal(item domainreceipt.Item) int64 {
 	return int64(item.Quantity) * item.UnitPrice
 }
 
-func calculateSubtotal(r domainreceipt.Receipt) int64 {
+func calculateSubtotal(
+	input domainreceipt.Receipt,
+) int64 {
 	var total int64
 
-	for _, item := range r.Items {
+	for _, item := range input.Items {
 		total += itemTotal(item)
 	}
 
@@ -397,4 +564,66 @@ func formatMoney(amount int64) string {
 	}
 
 	return value
+}
+
+func padLeft(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+
+	if len(text) >= width {
+		return truncate(text, width)
+	}
+
+	return strings.Repeat(
+		" ",
+		width-len(text),
+	) + text
+}
+
+func padRight(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+
+	if len(text) >= width {
+		return truncate(text, width)
+	}
+
+	return text +
+		strings.Repeat(
+			" ",
+			width-len(text),
+		)
+}
+
+func (l Layout) Padding(left, right int, content string) string {
+	if left < 0 {
+		left = 0
+	}
+
+	if right < 0 {
+		right = 0
+	}
+
+	width := l.ContentWidth()
+
+	if left+right >= width {
+		return l.withMargins(
+			truncate(content, width),
+		)
+	}
+
+	available := width - left - right
+	content = truncate(content, available)
+
+	return l.withMargins(
+		strings.Repeat(" ", left) +
+			content +
+			strings.Repeat(" ", right),
+	)
+}
+
+func (l Layout) BlankLine() string {
+	return l.withMargins("")
 }
