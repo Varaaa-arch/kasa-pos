@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
+	"time"
 
 	domainreceipt "pos-system/internal/domain/receipt"
 	"pos-system/internal/printer/logging"
@@ -35,18 +37,51 @@ func NewHandler(
 }
 
 type PrintRequest struct {
-	Store       domainreceipt.Store   `json:"store"`
-	Transaction PrintTransaction      `json:"transaction"`
-	Items       []domainreceipt.Item  `json:"items"`
-	Summary     domainreceipt.Summary `json:"summary"`
-	Payment     domainreceipt.Payment `json:"payment"`
-	Footer      domainreceipt.Footer  `json:"footer"`
+	Store       PrintStore       `json:"store"`
+	Transaction PrintTransaction `json:"transaction"`
+	Items       []PrintItem      `json:"items"`
+	Summary     PrintSummary     `json:"summary"`
+	Payment     PrintPayment     `json:"payment"`
+	Footer      PrintFooter      `json:"footer"`
+}
+
+type PrintStore struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Phone   string `json:"phone"`
 }
 
 type PrintTransaction struct {
-	ID            string `json:"id"`
-	InvoiceNumber string `json:"invoice_number"`
-	Cashier       string `json:"cashier"`
+	ID            string    `json:"id"`
+	InvoiceNumber string    `json:"invoice_number"`
+	Timestamp     time.Time `json:"timestamp"`
+	Cashier       string    `json:"cashier"`
+}
+
+type PrintItem struct {
+	ProductID string `json:"product_id"`
+	SKU       string `json:"sku"`
+	Name      string `json:"name"`
+	Quantity  int    `json:"quantity"`
+	UnitPrice int64  `json:"unit_price"`
+}
+
+type PrintSummary struct {
+	Subtotal      int64 `json:"subtotal"`
+	Discount      int64 `json:"discount"`
+	Tax           int64 `json:"tax"`
+	ServiceCharge int64 `json:"service_charge"`
+	Total         int64 `json:"total"`
+}
+
+type PrintPayment struct {
+	Method string `json:"method"`
+	Paid   int64  `json:"paid"`
+	Change int64  `json:"change"`
+}
+
+type PrintFooter struct {
+	Message string `json:"message"`
 }
 
 type PrintResponse struct {
@@ -114,29 +149,58 @@ func (h *Handler) Print(
 		return
 	}
 
+	items := make([]domainreceipt.Item, len(request.Items))
+	for i, it := range request.Items {
+		items[i] = domainreceipt.Item{
+			ProductID: it.ProductID,
+			SKU:       it.SKU,
+			Name:      it.Name,
+			Quantity:  it.Quantity,
+			UnitPrice: it.UnitPrice,
+		}
+	}
+
+	input := domainreceipt.Receipt{
+		Store: domainreceipt.Store{
+			Name:    request.Store.Name,
+			Address: request.Store.Address,
+			Phone:   request.Store.Phone,
+		},
+
+		Transaction: domainreceipt.Transaction{
+			ID:            request.Transaction.ID,
+			InvoiceNumber: request.Transaction.InvoiceNumber,
+			Timestamp:     request.Transaction.Timestamp,
+			Cashier:       request.Transaction.Cashier,
+		},
+
+		Items: items,
+
+		Summary: domainreceipt.Summary{
+			Subtotal:      request.Summary.Subtotal,
+			Discount:      request.Summary.Discount,
+			Tax:           request.Summary.Tax,
+			ServiceCharge: request.Summary.ServiceCharge,
+			Total:         request.Summary.Total,
+		},
+
+		Payment: domainreceipt.Payment{
+			Method: request.Payment.Method,
+			Paid:   request.Payment.Paid,
+			Change: request.Payment.Change,
+		},
+
+		Footer: domainreceipt.Footer{
+			Message: request.Footer.Message,
+		},
+	}
+
 	if h.Logger != nil {
 		h.Logger.Printf(
 			"print job created: job_id=%s",
 			jobID,
 		)
-	}
 
-	input := domainreceipt.Receipt{
-		Store: request.Store,
-
-		Transaction: domainreceipt.Transaction{
-			ID:            request.Transaction.ID,
-			InvoiceNumber: request.Transaction.InvoiceNumber,
-			Cashier:       request.Transaction.Cashier,
-		},
-
-		Items:   request.Items,
-		Summary: request.Summary,
-		Payment: request.Payment,
-		Footer:  request.Footer,
-	}
-
-	if h.Logger != nil {
 		h.Logger.Printf(
 			"print started: job_id=%s invoice=%s",
 			jobID,
@@ -144,11 +208,32 @@ func (h *Handler) Print(
 		)
 	}
 
-	if err := printerreceipt.Print(
+	err = printerreceipt.Print(
 		h.Printer,
 		h.Renderer,
 		input,
-	); err != nil {
+	)
+
+	if err != nil {
+		var validationErr printerreceipt.ValidationError
+
+		if errors.As(err, &validationErr) {
+			if h.Logger != nil {
+				h.Logger.Printf(
+					"invalid receipt: job_id=%s error=%v",
+					jobID,
+					err,
+				)
+			}
+
+			http.Error(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			)
+			return
+		}
+
 		if h.Logger != nil {
 			h.Logger.Printf(
 				"print failed: job_id=%s error=%v",

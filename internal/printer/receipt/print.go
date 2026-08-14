@@ -12,6 +12,15 @@ func Print(
 	renderer *Renderer,
 	input domainreceipt.Receipt,
 ) error {
+	// Validate receipt before touching the printer.
+	validator := NewValidator()
+
+	if err := validator.Validate(input); err != nil {
+		return err
+	}
+
+	// Retry printer opening because this operation may
+	// temporarily fail during reconnect/startup.
 	config := retry.DefaultConfig()
 
 	err := retry.Do(
@@ -27,8 +36,13 @@ func Print(
 
 	defer printer.Close()
 
+	// Render only after validation and successful printer open.
 	data := renderer.Render(input)
 
+	// Write exactly once.
+	//
+	// Do not automatically retry Write because the printer may
+	// have already received some/all of the receipt data.
 	_, err = printer.Write(data)
 	if err != nil {
 		return err

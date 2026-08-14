@@ -1,72 +1,36 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"pos-system/internal/printer/logging"
+	"pos-system/internal/printer/mock"
 	"pos-system/internal/printer/receipt"
 )
 
-type mockPrinter struct {
-	openErr  error
-	writeErr error
-	closeErr error
-
-	opened bool
-	closed bool
-	data   []byte
-}
-
-func (m *mockPrinter) Open() error {
-	if m.openErr != nil {
-		return m.openErr
-	}
-
-	m.opened = true
-
-	return nil
-}
-
-func (m *mockPrinter) Write(data []byte) (int, error) {
-	if m.writeErr != nil {
-		return 0, m.writeErr
-	}
-
-	m.data = append(m.data, data...)
-
-	return len(data), nil
-}
-
-func (m *mockPrinter) Close() error {
-	m.closed = true
-
-	return m.closeErr
-}
-
-func TestPrintHandler(t *testing.T) {
-	printer := &mockPrinter{}
-	renderer := receipt.NewRenderer()
-	logger := logging.New()
-
-	handler := NewHandler(
+func newTestHandler(printer *mock.Printer) *Handler {
+	return NewHandler(
 		printer,
-		renderer,
+		receipt.NewRenderer(),
 		"/dev/usb/lp0",
-		logger,
+		logging.New(),
 	)
+}
 
-	body := `{
+func validPrintJSON() string {
+    return `{
         "store": {
             "name": "TOKO KASA",
             "address": "Jl. Contoh No. 123",
             "phone": "081234567890"
         },
         "transaction": {
+            "id": "TXN-HTTP-001",
             "invoice_number": "INV-HTTP-001",
+            "timestamp": "2026-08-14T00:00:00Z",
             "cashier": "Bizar"
         },
         "items": [
@@ -77,19 +41,29 @@ func TestPrintHandler(t *testing.T) {
                 "unit_price": 15000
             }
         ],
+        "summary": {
+            "subtotal": 30000,
+            "total": 30000
+        },
         "payment": {
             "method": "CASH",
-            "paid": 50000
+            "paid": 50000,
+            "change": 20000
         },
         "footer": {
             "message": "PRINT AGENT OK"
         }
     }`
+}
+
+func TestPrintHandler(t *testing.T) {
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/print",
-		strings.NewReader(body),
+		strings.NewReader(validPrintJSON()),
 	)
 
 	req.Header.Set(
@@ -109,25 +83,24 @@ func TestPrintHandler(t *testing.T) {
 		)
 	}
 
-	if !printer.opened {
-		t.Fatal("expected printer to be opened")
-	}
-
-	if !printer.closed {
-		t.Fatal("expected printer to be closed")
-	}
-
-	if len(printer.data) == 0 {
-		t.Fatal("expected printer to receive data")
-	}
-
-	if !strings.Contains(
-		rec.Body.String(),
-		"receipt printed successfully",
-	) {
+	if printer.OpenCount != 1 {
 		t.Fatalf(
-			"unexpected response: %s",
-			rec.Body.String(),
+			"expected 1 open, got %d",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"expected 1 write, got %d",
+			printer.WriteCount,
+		)
+	}
+
+	if printer.CloseCount != 1 {
+		t.Fatalf(
+			"expected 1 close, got %d",
+			printer.CloseCount,
 		)
 	}
 
@@ -140,19 +113,21 @@ func TestPrintHandler(t *testing.T) {
 			rec.Body.String(),
 		)
 	}
+
+	if !strings.Contains(
+		rec.Body.String(),
+		"receipt printed successfully",
+	) {
+		t.Fatalf(
+			"unexpected response: %s",
+			rec.Body.String(),
+		)
+	}
 }
 
 func TestPrintHandlerInvalidJSON(t *testing.T) {
-	printer := &mockPrinter{}
-	renderer := receipt.NewRenderer()
-	logger := logging.New()
-
-	handler := NewHandler(
-		printer,
-		renderer,
-		"/dev/usb/lp0",
-		logger,
-	)
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -171,22 +146,16 @@ func TestPrintHandlerInvalidJSON(t *testing.T) {
 		)
 	}
 
-	if printer.opened {
-		t.Fatal("printer should not be opened for invalid JSON")
+	if printer.OpenCount != 0 {
+		t.Fatal(
+			"printer should not be opened for invalid JSON",
+		)
 	}
 }
 
 func TestPrintHandlerMethodNotAllowed(t *testing.T) {
-	printer := &mockPrinter{}
-	renderer := receipt.NewRenderer()
-	logger := logging.New()
-
-	handler := NewHandler(
-		printer,
-		renderer,
-		"/dev/usb/lp0",
-		logger,
-	)
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
 
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -207,32 +176,50 @@ func TestPrintHandlerMethodNotAllowed(t *testing.T) {
 }
 
 func TestPrintHandlerOpenError(t *testing.T) {
-	expectedErr := errors.New("printer unavailable")
-
-	printer := &mockPrinter{
-		openErr: expectedErr,
+	printer := &mock.Printer{
+		OpenErr: mock.ErrOpen,
 	}
 
-	renderer := receipt.NewRenderer()
-	logger := logging.New()
-
-	handler := NewHandler(
-		printer,
-		renderer,
-		"/dev/usb/lp0",
-		logger,
-	)
+	handler := newTestHandler(printer)
 
 	body := `{
-        "store": {
-            "name": "TOKO KASA"
-        }
-    }`
+		"store": {
+			"name": "TOKO KASA"
+		},
+		"transaction": {
+			"id": "TXN-OPEN-ERROR-001",
+			"invoice_number": "INV-OPEN-ERROR-001",
+			"timestamp": "2026-08-14T00:00:00Z",
+			"cashier": "Bizar"
+		},
+		"items": [
+			{
+				"name": "Kopi Susu",
+				"sku": "KOPI-001",
+				"quantity": 1,
+				"unit_price": 15000
+			}
+		],
+		"summary": {
+			"subtotal": 15000,
+			"total": 15000
+		},
+		"payment": {
+			"method": "CASH",
+			"paid": 15000,
+			"change": 0
+		}
+	}`
 
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/print",
 		strings.NewReader(body),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
 	)
 
 	rec := httptest.NewRecorder()
@@ -241,30 +228,93 @@ func TestPrintHandlerOpenError(t *testing.T) {
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf(
-			"expected status 500, got %d",
+			"expected status 500, got %d: %s",
 			rec.Code,
+			rec.Body.String(),
 		)
 	}
 
-	if !printer.opened {
-		// Expected because Open failed.
-		return
+	if printer.WriteCount != 0 {
+		t.Fatalf(
+			"expected no write attempts, got %d",
+			printer.WriteCount,
+		)
+	}
+}
+
+func TestPrintHandlerValidationError(t *testing.T) {
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
+
+	body := `{
+		"store": {
+			"name": "TOKO KASA"
+		},
+		"transaction": {
+			"id": "TXN-INVALID-001",
+			"invoice_number": "",
+			"timestamp": "2026-08-14T00:00:00Z",
+			"cashier": "Bizar"
+		},
+		"items": [
+			{
+				"name": "Kopi Susu",
+				"quantity": 1,
+				"unit_price": 15000
+			}
+		],
+		"summary": {
+			"subtotal": 15000,
+			"total": 15000
+		},
+		"payment": {
+			"method": "CASH",
+			"paid": 15000,
+			"change": 0
+		}
+	}`
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(body),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"expected status 400, got %d: %s",
+			rec.Code,
+			rec.Body.String(),
+		)
 	}
 
-	t.Fatal("printer should not be marked as opened")
+	if printer.OpenCount != 0 {
+		t.Fatalf(
+			"printer should not be opened for invalid receipt, got %d attempts",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 0 {
+		t.Fatalf(
+			"printer should not be written to, got %d attempts",
+			printer.WriteCount,
+		)
+	}
 }
 
 func TestStatusHandler(t *testing.T) {
-	printer := &mockPrinter{}
-	renderer := receipt.NewRenderer()
-	logger := logging.New()
-
-	handler := NewHandler(
-		printer,
-		renderer,
-		"/dev/usb/lp0",
-		logger,
-	)
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
 
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -287,15 +337,24 @@ func TestStatusHandler(t *testing.T) {
 	body := rec.Body.String()
 
 	if !strings.Contains(body, `"printer"`) {
-		t.Fatalf("response missing printer field: %s", body)
+		t.Fatalf(
+			"response missing printer field: %s",
+			body,
+		)
 	}
 
 	if !strings.Contains(body, `"device"`) {
-		t.Fatalf("response missing device field: %s", body)
+		t.Fatalf(
+			"response missing device field: %s",
+			body,
+		)
 	}
 
 	if !strings.Contains(body, `"connected"`) {
-		t.Fatalf("response missing connected field: %s", body)
+		t.Fatalf(
+			"response missing connected field: %s",
+			body,
+		)
 	}
 }
 
@@ -321,6 +380,27 @@ func TestGenerateJobID(t *testing.T) {
 		t.Fatalf(
 			"unexpected job ID prefix: %q",
 			id,
+		)
+	}
+}
+
+func TestGenerateJobIDsAreDifferent(t *testing.T) {
+	first, err := generateJobID()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	second, err := generateJobID()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first == second {
+		t.Fatalf(
+			"generated duplicate job IDs: %q",
+			first,
 		)
 	}
 }

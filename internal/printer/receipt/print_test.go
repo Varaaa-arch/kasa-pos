@@ -3,23 +3,78 @@ package receipt
 import (
 	"errors"
 	"testing"
+	"time"
 
 	domainreceipt "pos-system/internal/domain/receipt"
 )
+
+func validPrintReceipt() domainreceipt.Receipt {
+	return domainreceipt.Receipt{
+		Store: domainreceipt.Store{
+			Name: "TOKO KASA",
+		},
+
+		Transaction: domainreceipt.Transaction{
+			ID:            "TXN-PRINT-001",
+			InvoiceNumber: "INV-PRINT-001",
+			Timestamp:     time.Now(),
+			Cashier:       "Bizar",
+		},
+
+		Items: []domainreceipt.Item{
+			{
+				ProductID: "PROD-001",
+				SKU:       "KOPI-001",
+				Name:      "Kopi Susu",
+				Quantity:  2,
+				UnitPrice: 15000,
+			},
+		},
+
+		Summary: domainreceipt.Summary{
+			Subtotal: 30000,
+			Total:    30000,
+		},
+
+		Payment: domainreceipt.Payment{
+			Method: "CASH",
+			Paid:   50000,
+			Change: 20000,
+		},
+
+		Footer: domainreceipt.Footer{
+			Message: "TEST PRINT",
+		},
+	}
+}
 
 type failingPrinter struct {
 	openErr  error
 	writeErr error
 	closeErr error
 
-	closed bool
+	opened     bool
+	closed     bool
+	openCount  int
+	writeCount int
 }
 
 func (p *failingPrinter) Open() error {
-	return p.openErr
+	p.openCount++
+
+	if p.openErr != nil {
+		return p.openErr
+	}
+
+	p.opened = true
+	p.closed = false
+
+	return nil
 }
 
 func (p *failingPrinter) Write(data []byte) (int, error) {
+	p.writeCount++
+
 	if p.writeErr != nil {
 		return 0, p.writeErr
 	}
@@ -29,6 +84,7 @@ func (p *failingPrinter) Write(data []byte) (int, error) {
 
 func (p *failingPrinter) Close() error {
 	p.closed = true
+	p.opened = false
 
 	return p.closeErr
 }
@@ -45,7 +101,7 @@ func TestPrintOpenError(t *testing.T) {
 	err := Print(
 		printer,
 		renderer,
-		domainreceipt.Receipt{},
+		validPrintReceipt(),
 	)
 
 	if !errors.Is(err, expectedErr) {
@@ -53,6 +109,13 @@ func TestPrintOpenError(t *testing.T) {
 			"Print() error = %v, want %v",
 			err,
 			expectedErr,
+		)
+	}
+
+	if printer.writeCount != 0 {
+		t.Fatalf(
+			"expected no writes, got %d",
+			printer.writeCount,
 		)
 	}
 }
@@ -69,7 +132,7 @@ func TestPrintWriteError(t *testing.T) {
 	err := Print(
 		printer,
 		renderer,
-		domainreceipt.Receipt{},
+		validPrintReceipt(),
 	)
 
 	if !errors.Is(err, expectedErr) {
@@ -77,6 +140,17 @@ func TestPrintWriteError(t *testing.T) {
 			"Print() error = %v, want %v",
 			err,
 			expectedErr,
+		)
+	}
+
+	if printer.openCount < 1 {
+		t.Fatal("expected printer to be opened")
+	}
+
+	if printer.writeCount != 1 {
+		t.Fatalf(
+			"expected exactly 1 write attempt, got %d",
+			printer.writeCount,
 		)
 	}
 }
@@ -89,7 +163,7 @@ func TestPrintSuccess(t *testing.T) {
 	err := Print(
 		printer,
 		renderer,
-		domainreceipt.Receipt{},
+		validPrintReceipt(),
 	)
 
 	if err != nil {
@@ -97,6 +171,24 @@ func TestPrintSuccess(t *testing.T) {
 			"Print() returned unexpected error: %v",
 			err,
 		)
+	}
+
+	if printer.openCount != 1 {
+		t.Fatalf(
+			"expected 1 open attempt, got %d",
+			printer.openCount,
+		)
+	}
+
+	if printer.writeCount != 1 {
+		t.Fatalf(
+			"expected 1 write attempt, got %d",
+			printer.writeCount,
+		)
+	}
+
+	if !printer.closed {
+		t.Fatal("expected printer to be closed")
 	}
 }
 
@@ -108,7 +200,7 @@ func TestPrintClosesPrinter(t *testing.T) {
 	err := Print(
 		printer,
 		renderer,
-		domainreceipt.Receipt{},
+		validPrintReceipt(),
 	)
 
 	if err != nil {
@@ -156,7 +248,7 @@ func TestPrintRetriesOpen(t *testing.T) {
 	err := Print(
 		printer,
 		renderer,
-		domainreceipt.Receipt{},
+		validPrintReceipt(),
 	)
 
 	if err != nil {
@@ -177,6 +269,41 @@ func TestPrintRetriesOpen(t *testing.T) {
 		t.Fatalf(
 			"expected exactly 1 write attempt, got %d",
 			printer.writeAttempts,
+		)
+	}
+}
+
+func TestPrintRejectsInvalidReceipt(t *testing.T) {
+	printer := &failingPrinter{}
+	renderer := NewRenderer()
+
+	input := validPrintReceipt()
+	input.Transaction.InvoiceNumber = ""
+
+	err := Print(
+		printer,
+		renderer,
+		input,
+	)
+
+	if !errors.Is(err, ErrInvoiceRequired) {
+		t.Fatalf(
+			"expected ErrInvoiceRequired, got %v",
+			err,
+		)
+	}
+
+	if printer.openCount != 0 {
+		t.Fatalf(
+			"printer should not be opened for invalid receipt, got %d open attempts",
+			printer.openCount,
+		)
+	}
+
+	if printer.writeCount != 0 {
+		t.Fatalf(
+			"printer should not be written to for invalid receipt, got %d writes",
+			printer.writeCount,
 		)
 	}
 }
