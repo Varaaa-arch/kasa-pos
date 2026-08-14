@@ -104,15 +104,16 @@ func buildItemsSection(input domainreceipt.Receipt) Section {
 }
 
 func buildSummarySection(input domainreceipt.Receipt) Section {
-	var lines []string
+	calculator := NewCalculator()
+	calculation := calculator.Calculate(input)
 
-	subtotal := calculateSubtotal(input)
+	var lines []string
 
 	lines = append(
 		lines,
 		formatLeftRight(
 			"Subtotal",
-			"Rp"+formatMoney(subtotal),
+			"Rp"+formatMoney(calculation.Subtotal),
 			32,
 		),
 	)
@@ -150,21 +151,11 @@ func buildSummarySection(input domainreceipt.Receipt) Section {
 		)
 	}
 
-	total := input.Summary.Total
-
-	if total == 0 {
-		total =
-			subtotal -
-				input.Summary.Discount +
-				input.Summary.Tax +
-				input.Summary.ServiceCharge
-	}
-
 	lines = append(
 		lines,
 		formatLeftRight(
 			"TOTAL",
-			"Rp"+formatMoney(total),
+			"Rp"+formatMoney(calculation.Total),
 			32,
 		),
 	)
@@ -176,6 +167,9 @@ func buildSummarySection(input domainreceipt.Receipt) Section {
 }
 
 func buildPaymentSection(input domainreceipt.Receipt) Section {
+	calculator := NewCalculator()
+	calculation := calculator.Calculate(input)
+
 	var lines []string
 
 	if input.Payment.Method != "" {
@@ -193,34 +187,16 @@ func buildPaymentSection(input domainreceipt.Receipt) Section {
 		lines,
 		formatLeftRight(
 			"Bayar",
-			"Rp"+formatMoney(input.Payment.Paid),
+			"Rp"+formatMoney(calculation.Paid),
 			32,
 		),
 	)
-
-	change := input.Payment.Change
-
-	if change == 0 {
-		subtotal := calculateSubtotal(input)
-
-		total := input.Summary.Total
-
-		if total == 0 {
-			total =
-				subtotal -
-					input.Summary.Discount +
-					input.Summary.Tax +
-					input.Summary.ServiceCharge
-		}
-
-		change = input.Payment.Paid - total
-	}
 
 	lines = append(
 		lines,
 		formatLeftRight(
 			"Kembali",
-			"Rp"+formatMoney(change),
+			"Rp"+formatMoney(calculation.Change),
 			32,
 		),
 	)

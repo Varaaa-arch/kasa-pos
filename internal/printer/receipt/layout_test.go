@@ -699,7 +699,7 @@ func TestLargePrices(t *testing.T) {
 				)
 			}
 
-			expectedTotal := "Rp" + formatMoney(itemTotal(item))
+			expectedTotal := "Rp" + formatMoney(int64(item.Quantity)*item.UnitPrice)
 
 			if !strings.Contains(priceLine, expectedTotal) {
 				t.Fatalf(
@@ -797,7 +797,7 @@ func TestLargeQuantities(t *testing.T) {
 				)
 			}
 
-			expectedTotal := "Rp" + formatMoney(itemTotal(item))
+			expectedTotal := "Rp" + formatMoney(int64(item.Quantity)*item.UnitPrice)
 
 			if !strings.Contains(priceLine, expectedTotal) {
 				t.Fatalf(

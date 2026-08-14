@@ -121,23 +121,19 @@ func (v *Validator) Validate(
 		}
 	}
 
-	expectedSubtotal := calculateSubtotal(input)
+	calculator := NewCalculator()
+
+	calculation := calculator.Calculate(input)
 
 	if input.Summary.Subtotal != 0 &&
-		input.Summary.Subtotal != expectedSubtotal {
+		input.Summary.Subtotal != calculation.Subtotal {
 		return ValidationError{
 			Field: "summary.subtotal",
 			Err:   ErrTotalInvalid,
 		}
 	}
 
-	expectedTotal :=
-		expectedSubtotal -
-			input.Summary.Discount +
-			input.Summary.Tax +
-			input.Summary.ServiceCharge
-
-	if expectedTotal < 0 {
+	if calculation.Total < 0 {
 		return ValidationError{
 			Field: "summary.total",
 			Err:   ErrTotalInvalid,
@@ -145,7 +141,7 @@ func (v *Validator) Validate(
 	}
 
 	if input.Summary.Total != 0 &&
-		input.Summary.Total != expectedTotal {
+		input.Summary.Total != calculation.Total {
 		return ValidationError{
 			Field: "summary.total",
 			Err:   ErrTotalInvalid,
@@ -167,15 +163,7 @@ func (v *Validator) Validate(
 		}
 	}
 
-	total := input.Summary.Total
-
-	if total == 0 {
-		total = expectedTotal
-	}
-
-	expectedChange := input.Payment.Paid - total
-
-	if expectedChange < 0 {
+	if calculation.Paid < calculation.Total {
 		return ValidationError{
 			Field: "payment.change",
 			Err:   ErrChangeInvalid,
@@ -183,7 +171,7 @@ func (v *Validator) Validate(
 	}
 
 	if input.Payment.Change != 0 &&
-		input.Payment.Change != expectedChange {
+		input.Payment.Change != calculation.Change {
 		return ValidationError{
 			Field: "payment.change",
 			Err:   ErrChangeInvalid,

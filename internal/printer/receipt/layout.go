@@ -17,6 +17,7 @@ type Layout struct {
 	Width       int
 	LeftMargin  int
 	RightMargin int
+	Calculator  *Calculator
 }
 
 func NewLayout(width int) Layout {
@@ -28,6 +29,7 @@ func NewLayout(width int) Layout {
 		Width:       width,
 		LeftMargin:  DefaultLeftMargin,
 		RightMargin: DefaultRightMargin,
+		Calculator:  NewCalculator(),
 	}
 }
 
@@ -57,6 +59,7 @@ func NewLayoutWithMargins(
 		Width:       width,
 		LeftMargin:  leftMargin,
 		RightMargin: rightMargin,
+		Calculator:  NewCalculator(),
 	}
 }
 
@@ -168,6 +171,8 @@ func (l Layout) Item(item domainreceipt.Item) []string {
 func (l Layout) Render(input domainreceipt.Receipt) []string {
 	var lines []string
 
+	calculation := l.Calculator.Calculate(input)
+
 	// =========================
 	// HEADER
 	// =========================
@@ -267,13 +272,11 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		l.SeparatorLine('-'),
 	)
 
-	subtotal := calculateSubtotal(input)
-
 	lines = append(
 		lines,
 		l.LeftRight(
 			"Subtotal",
-			"Rp"+formatMoney(subtotal),
+			"Rp"+formatMoney(calculation.Subtotal),
 		),
 	)
 
@@ -309,15 +312,7 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		)
 	}
 
-	total := input.Summary.Total
-
-	if total == 0 {
-		total =
-			subtotal -
-				input.Summary.Discount +
-				input.Summary.Tax +
-				input.Summary.ServiceCharge
-	}
+	total := calculation.Total
 
 	lines = append(
 		lines,
@@ -350,15 +345,11 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		lines,
 		l.LeftRight(
 			"Bayar",
-			"Rp"+formatMoney(input.Payment.Paid),
+			"Rp"+formatMoney(calculation.Paid),
 		),
 	)
 
-	change := input.Payment.Change
-
-	if change == 0 {
-		change = input.Payment.Paid - total
-	}
+	change := calculation.Change
 
 	lines = append(
 		lines,
@@ -402,26 +393,6 @@ func (l Layout) SeparatorLine(char byte) string {
 	)
 
 	return l.withMargins(line)
-}
-
-func itemTotal(item domainreceipt.Item) int64 {
-	if item.Quantity <= 0 || item.UnitPrice <= 0 {
-		return 0
-	}
-
-	return int64(item.Quantity) * item.UnitPrice
-}
-
-func calculateSubtotal(
-	input domainreceipt.Receipt,
-) int64 {
-	var total int64
-
-	for _, item := range input.Items {
-		total += itemTotal(item)
-	}
-
-	return total
 }
 
 func truncate(text string, width int) string {

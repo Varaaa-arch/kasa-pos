@@ -7,12 +7,20 @@ import (
 )
 
 type ItemRenderer struct {
-	Layout Layout
+	Layout     Layout
+	Calculator *Calculator
 }
 
 func NewItemRenderer(layout Layout) *ItemRenderer {
+	calculator := layout.Calculator
+
+	if calculator == nil {
+		calculator = NewCalculator()
+	}
+
 	return &ItemRenderer{
-		Layout: layout,
+		Layout:     layout,
+		Calculator: calculator,
 	}
 }
 
@@ -40,8 +48,16 @@ func (r *ItemRenderer) Render(
 	)
 
 	// Item subtotal.
+	calculation := r.Calculator.Calculate(
+		domainreceipt.Receipt{
+			Items: []domainreceipt.Item{
+				item,
+			},
+		},
+	)
+
 	totalText := "Rp" + formatMoney(
-		itemTotal(item),
+		calculation.ItemsTotal,
 	)
 
 	// Need at least one character between
