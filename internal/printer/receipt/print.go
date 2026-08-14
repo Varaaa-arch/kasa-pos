@@ -4,11 +4,10 @@ import (
 	domainreceipt "pos-system/internal/domain/receipt"
 
 	"pos-system/internal/printer/retry"
-	"pos-system/internal/printer/transport"
 )
 
 func Print(
-	printer transport.Printer,
+	printer PrintTarget,
 	renderer *Renderer,
 	input domainreceipt.Receipt,
 ) error {
@@ -59,7 +58,7 @@ func CreatePrintJob(
 }
 
 func (j *PrintJob) Run(
-	printer transport.Printer,
+	printer PrintTarget,
 	renderer *Renderer,
 ) error {
 	if err := j.Start(); err != nil {
