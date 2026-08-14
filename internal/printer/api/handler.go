@@ -16,10 +16,11 @@ import (
 )
 
 type Handler struct {
-	Printer    transport.Printer
-	Renderer   *printerreceipt.Renderer
-	DevicePath string
-	Logger     *logging.Logger
+	Printer     transport.Printer
+	Renderer    *printerreceipt.Renderer
+	DevicePath  string
+	Logger      *logging.Logger
+	Idempotency *printerreceipt.IdempotencyStore
 }
 
 func NewHandler(
@@ -27,12 +28,14 @@ func NewHandler(
 	renderer *printerreceipt.Renderer,
 	devicePath string,
 	logger *logging.Logger,
+	idempotency *printerreceipt.IdempotencyStore,
 ) *Handler {
 	return &Handler{
-		Printer:    printer,
-		Renderer:   renderer,
-		DevicePath: devicePath,
-		Logger:     logger,
+		Printer:     printer,
+		Renderer:    renderer,
+		DevicePath:  devicePath,
+		Logger:      logger,
+		Idempotency: idempotency,
 	}
 }
 
@@ -112,6 +115,17 @@ func (h *Handler) Print(
 		h.Logger.Printf("print request received")
 	}
 
+	key := r.Header.Get("Idempotency-Key")
+
+	if key == "" {
+		http.Error(
+			w,
+			"Idempotency-Key header is required",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
 	var request PrintRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -128,6 +142,36 @@ func (h *Handler) Print(
 			w,
 			"invalid request body",
 			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if h.Idempotency == nil {
+		http.Error(
+			w,
+			"idempotency store is not configured",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	if err := h.Idempotency.Claim(key); err != nil {
+		if errors.Is(
+			err,
+			printerreceipt.ErrDuplicatePrintJob,
+		) {
+			http.Error(
+				w,
+				"duplicate print request",
+				http.StatusConflict,
+			)
+			return
+		}
+
+		http.Error(
+			w,
+			"failed to claim idempotency key",
+			http.StatusInternalServerError,
 		)
 		return
 	}
@@ -213,12 +257,16 @@ func (h *Handler) Print(
 		input,
 	)
 
+	h.Idempotency.SetStatus(key, job.Status)
+
 	err = job.Run(
 		h.Printer,
 		h.Renderer,
 	)
 
 	if err != nil {
+		h.Idempotency.SetStatus(key, job.Status)
+
 		var validationErr printerreceipt.ValidationError
 
 		if errors.As(err, &validationErr) {
@@ -254,6 +302,8 @@ func (h *Handler) Print(
 		)
 		return
 	}
+
+	h.Idempotency.SetStatus(key, job.Status)
 
 	if h.Logger != nil {
 		h.Logger.Printf(

@@ -17,6 +17,7 @@ func newTestHandler(printer *mock.Printer) *Handler {
 		receipt.NewRenderer(),
 		"/dev/usb/lp0",
 		logging.New(),
+		receipt.NewIdempotencyStore(),
 	)
 }
 
@@ -66,10 +67,8 @@ func TestPrintHandler(t *testing.T) {
 		strings.NewReader(validPrintJSON()),
 	)
 
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-print-handler-001")
 
 	rec := httptest.NewRecorder()
 
@@ -134,6 +133,8 @@ func TestPrintHandlerInvalidJSON(t *testing.T) {
 		"/print",
 		strings.NewReader(`{"invalid"`),
 	)
+
+	req.Header.Set("Idempotency-Key", "test-invalid-json-001")
 
 	rec := httptest.NewRecorder()
 
@@ -217,10 +218,8 @@ func TestPrintHandlerOpenError(t *testing.T) {
 		strings.NewReader(body),
 	)
 
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-open-error-001")
 
 	rec := httptest.NewRecorder()
 
@@ -280,10 +279,8 @@ func TestPrintHandlerValidationError(t *testing.T) {
 		strings.NewReader(body),
 	)
 
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-validation-error-001")
 
 	rec := httptest.NewRecorder()
 
@@ -415,10 +412,8 @@ func TestPrintHandlerCreatesPrintJob(t *testing.T) {
 		strings.NewReader(validPrintJSON()),
 	)
 
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-creates-print-job-001")
 
 	rec := httptest.NewRecorder()
 
@@ -493,10 +488,8 @@ func TestPrintHandlerPrintJobFailure(t *testing.T) {
 		strings.NewReader(validPrintJSON()),
 	)
 
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "test-print-job-failure-001")
 
 	rec := httptest.NewRecorder()
 
@@ -520,6 +513,70 @@ func TestPrintHandlerPrintJobFailure(t *testing.T) {
 	if printer.WriteCount != 1 {
 		t.Fatalf(
 			"expected WriteCount=1, got %d",
+			printer.WriteCount,
+		)
+	}
+}
+
+func TestPrintHandlerIdempotency(t *testing.T) {
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
+
+	const key = "TEST-IDEMPOTENCY-001"
+
+	// First request.
+	req1 := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Idempotency-Key", key)
+
+	rec1 := httptest.NewRecorder()
+
+	handler.Print(rec1, req1)
+
+	if rec1.Code != http.StatusOK {
+		t.Fatalf(
+			"first request: expected 200, got %d: %s",
+			rec1.Code,
+			rec1.Body.String(),
+		)
+	}
+
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"first request: expected 1 write, got %d",
+			printer.WriteCount,
+		)
+	}
+
+	// Second request with the same key.
+	req2 := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Idempotency-Key", key)
+
+	rec2 := httptest.NewRecorder()
+
+	handler.Print(rec2, req2)
+
+	if rec2.Code != http.StatusConflict {
+		t.Fatalf(
+			"second request: expected 409, got %d: %s",
+			rec2.Code,
+			rec2.Body.String(),
+		)
+	}
+
+	// Must NOT print again.
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"duplicate request caused another print: expected 1 write, got %d",
 			printer.WriteCount,
 		)
 	}

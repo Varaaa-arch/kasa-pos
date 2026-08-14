@@ -24,6 +24,7 @@ func main() {
 		renderer,
 		printerDevice,
 		logger,
+		receipt.NewIdempotencyStore(),
 	)
 
 	mux := http.NewServeMux()
