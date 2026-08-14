@@ -581,3 +581,169 @@ func TestPrintHandlerIdempotency(t *testing.T) {
 		)
 	}
 }
+
+func TestPrintAPIToPrinterIntegration(t *testing.T) {
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(
+		"Idempotency-Key",
+		"INTEGRATION-API-001",
+	)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf(
+			"expected 200, got %d: %s",
+			rec.Code,
+			rec.Body.String(),
+		)
+	}
+
+	if printer.OpenCount != 1 {
+		t.Fatalf(
+			"expected 1 open, got %d",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"expected 1 write, got %d",
+			printer.WriteCount,
+		)
+	}
+
+	if printer.CloseCount != 1 {
+		t.Fatalf(
+			"expected 1 close, got %d",
+			printer.CloseCount,
+		)
+	}
+
+	if len(printer.Data) == 0 {
+		t.Fatal("expected printer data")
+	}
+
+	expectedTexts := []string{
+		"TOKO KASA",
+		"INV-HTTP-001",
+		"Kopi Susu",
+		"Rp30.000",
+		"Rp50.000",
+		"Rp20.000",
+		"PRINT AGENT OK",
+	}
+
+	for _, expected := range expectedTexts {
+		if !strings.Contains(
+			string(printer.Data),
+			expected,
+		) {
+			t.Fatalf(
+				"printer output missing %q",
+				expected,
+			)
+		}
+	}
+}
+
+func TestPrintAPIValidationFailureDoesNotTouchPrinter(t *testing.T) {
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
+
+	body := strings.Replace(
+		validPrintJSON(),
+		`"invoice_number": "INV-HTTP-001"`,
+		`"invoice_number": ""`,
+		1,
+	)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(body),
+	)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "INTEGRATION-FAIL-001")
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"expected 400, got %d: %s",
+			rec.Code,
+			rec.Body.String(),
+		)
+	}
+
+	if printer.OpenCount != 0 {
+		t.Fatalf(
+			"printer was opened %d times",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 0 {
+		t.Fatalf(
+			"printer was written %d times",
+			printer.WriteCount,
+		)
+	}
+}
+
+func TestPrintAPIPrinterFailure(t *testing.T) {
+	printer := &mock.Printer{
+		WriteErr: mock.ErrWrite,
+	}
+
+	handler := newTestHandler(printer)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "INTEGRATION-FAIL-002")
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf(
+			"expected 500, got %d: %s",
+			rec.Code,
+			rec.Body.String(),
+		)
+	}
+
+	if printer.OpenCount != 1 {
+		t.Fatalf(
+			"expected 1 open, got %d",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"expected 1 write, got %d",
+			printer.WriteCount,
+		)
+	}
+}
