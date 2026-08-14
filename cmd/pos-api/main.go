@@ -10,12 +10,27 @@ import (
 	"time"
 
 	"pos-system/internal/api"
+	"pos-system/internal/db"
+	postgres "pos-system/internal/repository/postgres"
+	productservice "pos-system/internal/service/product"
 )
 
 func main() {
+	database, err := db.OpenPostgres(
+		os.Getenv("DATABASE_URL"),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+
+	productRepo := postgres.NewProductRepository(database)
+	productSvc := productservice.NewService(productRepo)
+	productHandler := api.NewProductHandler(productSvc)
+
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: api.NewRouter(),
+		Handler: api.NewRouter(productHandler),
 	}
 
 	stop := make(chan os.Signal, 1)

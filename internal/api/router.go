@@ -2,10 +2,20 @@ package api
 
 import "net/http"
 
-func NewRouter() http.Handler {
+func NewRouter(
+	productHandler *ProductHandler,
+) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+
+	if productHandler != nil {
+		mux.HandleFunc("GET /products", productHandler.List)
+		mux.HandleFunc("POST /products", productHandler.Create)
+		mux.HandleFunc("GET /products/{id}", productHandler.GetByID)
+		mux.HandleFunc("PUT /products/{id}", productHandler.Update)
+		mux.HandleFunc("DELETE /products/{id}", productHandler.Delete)
+	}
 
 	return Chain(
 		mux,
