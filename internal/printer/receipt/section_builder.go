@@ -113,39 +113,39 @@ func buildSummarySection(input domainreceipt.Receipt) Section {
 		lines,
 		formatLeftRight(
 			"Subtotal",
-			"Rp"+formatMoney(calculation.Subtotal),
+			calculation.Subtotal.String(),
 			32,
 		),
 	)
 
-	if input.Summary.Discount != 0 {
+	if !input.Summary.Discount.IsZero() {
 		lines = append(
 			lines,
 			formatLeftRight(
 				"Diskon",
-				"Rp"+formatMoney(input.Summary.Discount),
+				input.Summary.Discount.String(),
 				32,
 			),
 		)
 	}
 
-	if input.Summary.Tax != 0 {
+	if !input.Summary.Tax.IsZero() {
 		lines = append(
 			lines,
 			formatLeftRight(
 				"Pajak",
-				"Rp"+formatMoney(input.Summary.Tax),
+				input.Summary.Tax.String(),
 				32,
 			),
 		)
 	}
 
-	if input.Summary.ServiceCharge != 0 {
+	if !input.Summary.ServiceCharge.IsZero() {
 		lines = append(
 			lines,
 			formatLeftRight(
 				"Biaya Layanan",
-				"Rp"+formatMoney(input.Summary.ServiceCharge),
+				input.Summary.ServiceCharge.String(),
 				32,
 			),
 		)
@@ -155,7 +155,7 @@ func buildSummarySection(input domainreceipt.Receipt) Section {
 		lines,
 		formatLeftRight(
 			"TOTAL",
-			"Rp"+formatMoney(calculation.Total),
+			calculation.Total.String(),
 			32,
 		),
 	)
@@ -187,7 +187,7 @@ func buildPaymentSection(input domainreceipt.Receipt) Section {
 		lines,
 		formatLeftRight(
 			"Bayar",
-			"Rp"+formatMoney(calculation.Paid),
+			calculation.Paid.String(),
 			32,
 		),
 	)
@@ -196,7 +196,7 @@ func buildPaymentSection(input domainreceipt.Receipt) Section {
 		lines,
 		formatLeftRight(
 			"Kembali",
-			"Rp"+formatMoney(calculation.Change),
+			calculation.Change.String(),
 			32,
 		),
 	)

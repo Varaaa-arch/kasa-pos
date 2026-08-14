@@ -37,26 +37,26 @@ func TestBuildSections(t *testing.T) {
 				SKU:       "KOPI-001",
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 			{
 				ProductID: "PROD-002",
 				SKU:       "ROTI-001",
 				Name:      "Roti Bakar",
 				Quantity:  1,
-				UnitPrice: 12000,
+				UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 			},
 		},
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 42000,
-			Total:    42000,
+			Subtotal: domainreceipt.NewMoney(42000, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(42000, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   50000,
-			Change: 8000,
+			Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(8000, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{
@@ -168,12 +168,12 @@ func TestBuildItemsSection(t *testing.T) {
 			{
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 			{
 				Name:      "Roti Bakar",
 				Quantity:  1,
-				UnitPrice: 12000,
+				UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 			},
 		},
 	}
@@ -198,13 +198,13 @@ func TestBuildSummarySection(t *testing.T) {
 			{
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 		},
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 30000,
-			Total:    30000,
+			Subtotal: domainreceipt.NewMoney(30000, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(30000, domainreceipt.IDR),
 		},
 	}
 
@@ -228,13 +228,13 @@ func TestBuildSummarySection(t *testing.T) {
 func TestBuildPaymentSection(t *testing.T) {
 	input := domainreceipt.Receipt{
 		Summary: domainreceipt.Summary{
-			Total: 30000,
+			Total: domainreceipt.NewMoney(30000, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   50000,
-			Change: 20000,
+			Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(20000, domainreceipt.IDR),
 		},
 	}
 

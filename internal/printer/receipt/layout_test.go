@@ -73,7 +73,7 @@ func TestItemLayout(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Kopi Susu",
 		Quantity:  2,
-		UnitPrice: 15000,
+		UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 	}
 
 	lines := layout.Item(item)
@@ -118,7 +118,7 @@ func TestItemLayoutLongName(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Kopi Susu Gula Aren Extra Large Premium",
 		Quantity:  1,
-		UnitPrice: 15000,
+		UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 	}
 
 	lines := layout.Item(item)
@@ -333,33 +333,33 @@ func TestReceiptRender(t *testing.T) {
 				SKU:       "KOPI-001",
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 			{
 				ProductID: "PROD-002",
 				SKU:       "ROTI-001",
 				Name:      "Roti Bakar",
 				Quantity:  1,
-				UnitPrice: 12000,
+				UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 			},
 			{
 				ProductID: "PROD-003",
 				SKU:       "AIR-001",
 				Name:      "Air Mineral",
 				Quantity:  1,
-				UnitPrice: 5000,
+				UnitPrice: domainreceipt.NewMoney(5000, domainreceipt.IDR),
 			},
 		},
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 47000,
-			Total:    47000,
+			Subtotal: domainreceipt.NewMoney(47000, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(47000, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   50000,
-			Change: 3000,
+			Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(3000, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{
@@ -443,7 +443,7 @@ func TestItemLayoutLargePrice(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Laptop Gaming",
 		Quantity:  99,
-		UnitPrice: 12500000,
+		UnitPrice: domainreceipt.NewMoney(12500000, domainreceipt.IDR),
 	}
 
 	lines := layout.Item(item)
@@ -505,52 +505,52 @@ func TestManyItems(t *testing.T) {
 		{
 			Name:      "Kopi Susu",
 			Quantity:  2,
-			UnitPrice: 15000,
+			UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Roti Bakar",
 			Quantity:  1,
-			UnitPrice: 12000,
+			UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Air Mineral",
 			Quantity:  3,
-			UnitPrice: 5000,
+			UnitPrice: domainreceipt.NewMoney(5000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Nasi Goreng Spesial",
 			Quantity:  2,
-			UnitPrice: 25000,
+			UnitPrice: domainreceipt.NewMoney(25000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Es Teh Manis",
 			Quantity:  4,
-			UnitPrice: 5000,
+			UnitPrice: domainreceipt.NewMoney(5000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Kentang Goreng",
 			Quantity:  2,
-			UnitPrice: 10000,
+			UnitPrice: domainreceipt.NewMoney(10000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Ayam Geprek",
 			Quantity:  3,
-			UnitPrice: 18000,
+			UnitPrice: domainreceipt.NewMoney(18000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Mie Goreng",
 			Quantity:  2,
-			UnitPrice: 15000,
+			UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Jus Alpukat",
 			Quantity:  1,
-			UnitPrice: 12000,
+			UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 		},
 		{
 			Name:      "Pisang Coklat Keju",
 			Quantity:  2,
-			UnitPrice: 13000,
+			UnitPrice: domainreceipt.NewMoney(13000, domainreceipt.IDR),
 		},
 	}
 
@@ -569,14 +569,14 @@ func TestManyItems(t *testing.T) {
 		Items: items,
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 269000,
-			Total:    269000,
+			Subtotal: domainreceipt.NewMoney(269000, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(269000, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   300000,
-			Change: 31000,
+			Paid: domainreceipt.NewMoney(300000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(31000, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{
@@ -629,31 +629,31 @@ func TestLargePrices(t *testing.T) {
 		name      string
 		itemName  string
 		quantity  int
-		unitPrice int64
+		unitPrice domainreceipt.Money
 	}{
 		{
 			name:      "one million",
 			itemName:  "Laptop",
 			quantity:  1,
-			unitPrice: 1_000_000,
+			unitPrice: domainreceipt.NewMoney(1_000_000, domainreceipt.IDR),
 		},
 		{
 			name:      "ten million",
 			itemName:  "Smartphone",
 			quantity:  2,
-			unitPrice: 10_000_000,
+			unitPrice: domainreceipt.NewMoney(10_000_000, domainreceipt.IDR),
 		},
 		{
 			name:      "one hundred million",
 			itemName:  "Server Rack",
 			quantity:  1,
-			unitPrice: 100_000_000,
+			unitPrice: domainreceipt.NewMoney(100_000_000, domainreceipt.IDR),
 		},
 		{
 			name:      "large quantity",
 			itemName:  "Kursi Kantor",
 			quantity:  999,
-			unitPrice: 999_999,
+			unitPrice: domainreceipt.NewMoney(999_999, domainreceipt.IDR),
 		},
 	}
 
@@ -689,7 +689,7 @@ func TestLargePrices(t *testing.T) {
 
 			priceLine := lines[len(lines)-1]
 
-			expectedUnitPrice := "Rp" + formatMoney(tt.unitPrice)
+			expectedUnitPrice := "Rp" + formatMoney(tt.unitPrice.Amount)
 
 			if !strings.Contains(priceLine, expectedUnitPrice) {
 				t.Fatalf(
@@ -699,7 +699,7 @@ func TestLargePrices(t *testing.T) {
 				)
 			}
 
-			expectedTotal := "Rp" + formatMoney(int64(item.Quantity)*item.UnitPrice)
+			expectedTotal := "Rp" + formatMoney(int64(item.Quantity)*item.UnitPrice.Amount)
 
 			if !strings.Contains(priceLine, expectedTotal) {
 				t.Fatalf(
@@ -719,31 +719,31 @@ func TestLargeQuantities(t *testing.T) {
 		name     string
 		itemName string
 		quantity int
-		price    int64
+		price    domainreceipt.Money
 	}{
 		{
 			name:     "quantity 99",
 			itemName: "Kopi Susu",
 			quantity: 99,
-			price:    15000,
+			price:    domainreceipt.NewMoney(15000, domainreceipt.IDR),
 		},
 		{
 			name:     "quantity 999",
 			itemName: "Air Mineral",
 			quantity: 999,
-			price:    5000,
+			price:    domainreceipt.NewMoney(5000, domainreceipt.IDR),
 		},
 		{
 			name:     "quantity 9999",
 			itemName: "Roti Bakar",
 			quantity: 9999,
-			price:    12000,
+			price:    domainreceipt.NewMoney(12000, domainreceipt.IDR),
 		},
 		{
 			name:     "quantity 100000",
 			itemName: "Pulpen",
 			quantity: 100000,
-			price:    3000,
+			price:    domainreceipt.NewMoney(3000, domainreceipt.IDR),
 		},
 	}
 
@@ -783,7 +783,7 @@ func TestLargeQuantities(t *testing.T) {
 				strings.Join(
 					[]string{
 						formatQuantity(tt.quantity),
-						"x Rp" + formatMoney(tt.price),
+						"x Rp" + formatMoney(tt.price.Amount),
 					},
 					" ",
 				),
@@ -797,7 +797,7 @@ func TestLargeQuantities(t *testing.T) {
 				)
 			}
 
-			expectedTotal := "Rp" + formatMoney(int64(item.Quantity)*item.UnitPrice)
+			expectedTotal := "Rp" + formatMoney(int64(item.Quantity)*item.UnitPrice.Amount)
 
 			if !strings.Contains(priceLine, expectedTotal) {
 				t.Fatalf(
@@ -830,14 +830,14 @@ func TestReceiptWithoutItems(t *testing.T) {
 		Items: []domainreceipt.Item{},
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 0,
-			Total:    0,
+			Subtotal: domainreceipt.NewMoney(0, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(0, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   0,
-			Change: 0,
+			Paid: domainreceipt.NewMoney(0, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(0, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{

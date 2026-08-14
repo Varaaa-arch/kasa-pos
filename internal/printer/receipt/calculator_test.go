@@ -6,6 +6,31 @@ import (
 	domainreceipt "pos-system/internal/domain/receipt"
 )
 
+func assertMoney(
+	t *testing.T,
+	got domainreceipt.Money,
+	wantAmount int64,
+	wantCurrency domainreceipt.Currency,
+) {
+	t.Helper()
+
+	if got.Amount != wantAmount {
+		t.Fatalf(
+			"amount = %d, want %d",
+			got.Amount,
+			wantAmount,
+		)
+	}
+
+	if got.Currency != wantCurrency {
+		t.Fatalf(
+			"currency = %q, want %q",
+			got.Currency,
+			wantCurrency,
+		)
+	}
+}
+
 func TestCalculator(t *testing.T) {
 	calculator := NewCalculator()
 
@@ -28,16 +53,16 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  2,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 					{
 						Name:      "Roti Bakar",
 						Quantity:  1,
-						UnitPrice: 12000,
+						UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 					},
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 50000,
+					Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 42000,
@@ -56,19 +81,19 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  2,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 					{
 						Name:      "Roti Bakar",
 						Quantity:  1,
-						UnitPrice: 12000,
+						UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 					},
 				},
 				Summary: domainreceipt.Summary{
-					Discount: 5000,
+					Discount: domainreceipt.NewMoney(5000, domainreceipt.IDR),
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 50000,
+					Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 42000,
@@ -87,19 +112,19 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  2,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 					{
 						Name:      "Roti Bakar",
 						Quantity:  1,
-						UnitPrice: 12000,
+						UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 					},
 				},
 				Summary: domainreceipt.Summary{
-					Tax: 4200,
+					Tax: domainreceipt.NewMoney(4200, domainreceipt.IDR),
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 50000,
+					Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 42000,
@@ -118,14 +143,14 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  2,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 				},
 				Summary: domainreceipt.Summary{
-					ServiceCharge: 3000,
+					ServiceCharge: domainreceipt.NewMoney(3000, domainreceipt.IDR),
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 35000,
+					Paid: domainreceipt.NewMoney(35000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 30000,
@@ -144,16 +169,16 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  2,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 				},
 				Summary: domainreceipt.Summary{
-					Discount:      2000,
-					Tax:           2800,
-					ServiceCharge: 1000,
+					Discount:      domainreceipt.NewMoney(2000, domainreceipt.IDR),
+					Tax:           domainreceipt.NewMoney(2800, domainreceipt.IDR),
+					ServiceCharge: domainreceipt.NewMoney(1000, domainreceipt.IDR),
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 40000,
+					Paid: domainreceipt.NewMoney(40000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 30000,
@@ -172,11 +197,11 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  1,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 15000,
+					Paid: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 15000,
@@ -192,11 +217,11 @@ func TestCalculator(t *testing.T) {
 					{
 						Name:      "Kopi Susu",
 						Quantity:  1,
-						UnitPrice: 15000,
+						UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 					},
 				},
 				Payment: domainreceipt.Payment{
-					Paid: 10000,
+					Paid: domainreceipt.NewMoney(10000, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 15000,
@@ -209,7 +234,7 @@ func TestCalculator(t *testing.T) {
 			name: "empty receipt",
 			input: domainreceipt.Receipt{
 				Payment: domainreceipt.Payment{
-					Paid: 0,
+					Paid: domainreceipt.NewMoney(0, domainreceipt.IDR),
 				},
 			},
 			wantItemsTotal: 0,
@@ -227,66 +252,66 @@ func TestCalculator(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := calculator.Calculate(tt.input)
 
-			if got.ItemsTotal != tt.wantItemsTotal {
+			if got.ItemsTotal.Amount != tt.wantItemsTotal {
 				t.Fatalf(
 					"ItemsTotal = %d, want %d",
-					got.ItemsTotal,
+					got.ItemsTotal.Amount,
 					tt.wantItemsTotal,
 				)
 			}
 
-			if got.Subtotal != tt.wantSubtotal {
+			if got.Subtotal.Amount != tt.wantSubtotal {
 				t.Fatalf(
 					"Subtotal = %d, want %d",
-					got.Subtotal,
+					got.Subtotal.Amount,
 					tt.wantSubtotal,
 				)
 			}
 
-			if got.Discount != tt.wantDiscount {
+			if got.Discount.Amount != tt.wantDiscount {
 				t.Fatalf(
 					"Discount = %d, want %d",
-					got.Discount,
+					got.Discount.Amount,
 					tt.wantDiscount,
 				)
 			}
 
-			if got.Tax != tt.wantTax {
+			if got.Tax.Amount != tt.wantTax {
 				t.Fatalf(
 					"Tax = %d, want %d",
-					got.Tax,
+					got.Tax.Amount,
 					tt.wantTax,
 				)
 			}
 
-			if got.ServiceCharge != tt.wantService {
+			if got.ServiceCharge.Amount != tt.wantService {
 				t.Fatalf(
 					"ServiceCharge = %d, want %d",
-					got.ServiceCharge,
+					got.ServiceCharge.Amount,
 					tt.wantService,
 				)
 			}
 
-			if got.Total != tt.wantTotal {
+			if got.Total.Amount != tt.wantTotal {
 				t.Fatalf(
 					"Total = %d, want %d",
-					got.Total,
+					got.Total.Amount,
 					tt.wantTotal,
 				)
 			}
 
-			if got.Paid != tt.wantPaid {
+			if got.Paid.Amount != tt.wantPaid {
 				t.Fatalf(
 					"Paid = %d, want %d",
-					got.Paid,
+					got.Paid.Amount,
 					tt.wantPaid,
 				)
 			}
 
-			if got.Change != tt.wantChange {
+			if got.Change.Amount != tt.wantChange {
 				t.Fatalf(
 					"Change = %d, want %d",
-					got.Change,
+					got.Change.Amount,
 					tt.wantChange,
 				)
 			}
@@ -302,11 +327,11 @@ func TestCalculatorItemTotal(t *testing.T) {
 			{
 				Name:      "Produk A",
 				Quantity:  99,
-				UnitPrice: 12500000,
+				UnitPrice: domainreceipt.NewMoney(12500000, domainreceipt.IDR),
 			},
 		},
 		Payment: domainreceipt.Payment{
-			Paid: 2000000000,
+			Paid: domainreceipt.NewMoney(2000000000, domainreceipt.IDR),
 		},
 	}
 
@@ -314,21 +339,19 @@ func TestCalculatorItemTotal(t *testing.T) {
 
 	want := int64(99) * 12500000
 
-	if got.ItemsTotal != want {
-		t.Fatalf(
-			"ItemsTotal = %d, want %d",
-			got.ItemsTotal,
-			want,
-		)
-	}
+	assertMoney(
+		t,
+		got.ItemsTotal,
+		want,
+		domainreceipt.IDR,
+	)
 
-	if got.Subtotal != want {
-		t.Fatalf(
-			"Subtotal = %d, want %d",
-			got.Subtotal,
-			want,
-		)
-	}
+	assertMoney(
+		t,
+		got.Subtotal,
+		want,
+		domainreceipt.IDR,
+	)
 }
 
 func TestCalculatorDoesNotUseExistingSummarySubtotal(t *testing.T) {
@@ -339,33 +362,33 @@ func TestCalculatorDoesNotUseExistingSummarySubtotal(t *testing.T) {
 			{
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 		},
 		Summary: domainreceipt.Summary{
-			Subtotal: 999999,
-			Total:    999999,
+			Subtotal: domainreceipt.NewMoney(999999, domainreceipt.IDR),
+			Total:    domainreceipt.NewMoney(999999, domainreceipt.IDR),
 		},
 		Payment: domainreceipt.Payment{
-			Paid: 50000,
+			Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
 		},
 	}
 
 	got := calculator.Calculate(input)
 
-	if got.Subtotal != 30000 {
-		t.Fatalf(
-			"Subtotal = %d, want 30000",
-			got.Subtotal,
-		)
-	}
+	assertMoney(
+		t,
+		got.Subtotal,
+		30000,
+		domainreceipt.IDR,
+	)
 
-	if got.Total != 30000 {
-		t.Fatalf(
-			"Total = %d, want 30000",
-			got.Total,
-		)
-	}
+	assertMoney(
+		t,
+		got.Total,
+		30000,
+		domainreceipt.IDR,
+	)
 }
 
 func TestCalculatorIsSingleSourceOfTruth(t *testing.T) {
@@ -376,26 +399,26 @@ func TestCalculatorIsSingleSourceOfTruth(t *testing.T) {
 			{
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 			{
 				Name:      "Roti Bakar",
 				Quantity:  1,
-				UnitPrice: 12000,
+				UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 			},
 		},
 
 		Summary: domainreceipt.Summary{
-			Subtotal:      999999,
-			Discount:      5000,
-			Tax:           4200,
-			ServiceCharge: 1000,
-			Total:         999999,
+			Subtotal:      domainreceipt.NewMoney(999999, domainreceipt.IDR),
+			Discount:      domainreceipt.NewMoney(5000, domainreceipt.IDR),
+			Tax:           domainreceipt.NewMoney(4200, domainreceipt.IDR),
+			ServiceCharge: domainreceipt.NewMoney(1000, domainreceipt.IDR),
+			Total:         domainreceipt.NewMoney(999999, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
-			Paid:   50000,
-			Change: 999999,
+			Paid:   domainreceipt.NewMoney(50000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(999999, domainreceipt.IDR),
 		},
 	}
 
@@ -405,27 +428,24 @@ func TestCalculatorIsSingleSourceOfTruth(t *testing.T) {
 	expectedTotal := int64(42200)
 	expectedChange := int64(7800)
 
-	if got.Subtotal != expectedSubtotal {
-		t.Fatalf(
-			"Subtotal = %d, want %d",
-			got.Subtotal,
-			expectedSubtotal,
-		)
-	}
+	assertMoney(
+		t,
+		got.Subtotal,
+		expectedSubtotal,
+		domainreceipt.IDR,
+	)
 
-	if got.Total != expectedTotal {
-		t.Fatalf(
-			"Total = %d, want %d",
-			got.Total,
-			expectedTotal,
-		)
-	}
+	assertMoney(
+		t,
+		got.Total,
+		expectedTotal,
+		domainreceipt.IDR,
+	)
 
-	if got.Change != expectedChange {
-		t.Fatalf(
-			"Change = %d, want %d",
-			got.Change,
-			expectedChange,
-		)
-	}
+	assertMoney(
+		t,
+		got.Change,
+		expectedChange,
+		domainreceipt.IDR,
+	)
 }

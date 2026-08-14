@@ -27,19 +27,19 @@ func validPrintReceipt() domainreceipt.Receipt {
 				SKU:       "KOPI-001",
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 		},
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 30000,
-			Total:    30000,
+			Subtotal: domainreceipt.NewMoney(30000, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(30000, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   50000,
-			Change: 20000,
+			Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(20000, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{

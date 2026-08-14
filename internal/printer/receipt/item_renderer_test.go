@@ -14,7 +14,7 @@ func TestItemRenderer(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Kopi Susu",
 		Quantity:  2,
-		UnitPrice: 15000,
+		UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 	}
 
 	lines := renderer.Render(item)
@@ -52,7 +52,7 @@ func TestItemRendererLongName(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Kopi Susu Gula Aren Extra Large Premium",
 		Quantity:  1,
-		UnitPrice: 15000,
+		UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 	}
 
 	lines := renderer.Render(item)
@@ -101,7 +101,7 @@ func TestItemRendererLargePrice(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Laptop Gaming",
 		Quantity:  99,
-		UnitPrice: 12500000,
+		UnitPrice: domainreceipt.NewMoney(12500000, domainreceipt.IDR),
 	}
 
 	lines := renderer.Render(item)
@@ -142,7 +142,7 @@ func TestItemRendererLargeQuantity(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Kopi Susu",
 		Quantity:  100000,
-		UnitPrice: 3000,
+		UnitPrice: domainreceipt.NewMoney(3000, domainreceipt.IDR),
 	}
 
 	lines := renderer.Render(item)
@@ -191,7 +191,7 @@ func TestItemRendererZeroQuantity(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Kopi Susu",
 		Quantity:  0,
-		UnitPrice: 15000,
+		UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 	}
 
 	lines := renderer.Render(item)
@@ -222,7 +222,7 @@ func TestItemRendererZeroPrice(t *testing.T) {
 	item := domainreceipt.Item{
 		Name:      "Free Sample",
 		Quantity:  1,
-		UnitPrice: 0,
+		UnitPrice: domainreceipt.NewMoney(0, domainreceipt.IDR),
 	}
 
 	lines := renderer.Render(item)

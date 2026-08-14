@@ -156,7 +156,7 @@ func (h *Handler) Print(
 			SKU:       it.SKU,
 			Name:      it.Name,
 			Quantity:  it.Quantity,
-			UnitPrice: it.UnitPrice,
+			UnitPrice: domainreceipt.NewMoney(it.UnitPrice, domainreceipt.IDR),
 		}
 	}
 
@@ -177,17 +177,17 @@ func (h *Handler) Print(
 		Items: items,
 
 		Summary: domainreceipt.Summary{
-			Subtotal:      request.Summary.Subtotal,
-			Discount:      request.Summary.Discount,
-			Tax:           request.Summary.Tax,
-			ServiceCharge: request.Summary.ServiceCharge,
-			Total:         request.Summary.Total,
+			Subtotal:      domainreceipt.NewMoney(request.Summary.Subtotal, domainreceipt.IDR),
+			Discount:      domainreceipt.NewMoney(request.Summary.Discount, domainreceipt.IDR),
+			Tax:           domainreceipt.NewMoney(request.Summary.Tax, domainreceipt.IDR),
+			ServiceCharge: domainreceipt.NewMoney(request.Summary.ServiceCharge, domainreceipt.IDR),
+			Total:         domainreceipt.NewMoney(request.Summary.Total, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: request.Payment.Method,
-			Paid:   request.Payment.Paid,
-			Change: request.Payment.Change,
+			Paid:   domainreceipt.NewMoney(request.Payment.Paid, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(request.Payment.Change, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{

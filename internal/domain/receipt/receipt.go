@@ -36,21 +36,21 @@ type Item struct {
 	SKU       string
 	Name      string
 	Quantity  int
-	UnitPrice int64
+	UnitPrice Money
 }
 
 type Summary struct {
-	Subtotal      int64
-	Discount      int64
-	Tax           int64
-	ServiceCharge int64
-	Total         int64
+	Subtotal      Money
+	Discount      Money
+	Tax           Money
+	ServiceCharge Money
+	Total         Money
 }
 
 type Payment struct {
 	Method string
-	Paid   int64
-	Change int64
+	Paid   Money
+	Change Money
 }
 
 type Footer struct {

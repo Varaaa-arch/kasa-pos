@@ -43,22 +43,22 @@ func TestReceiptDomainModel(t *testing.T) {
 				SKU:       "KOPI-001",
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: NewMoney(15000, IDR),
 			},
 		},
 
 		Summary: Summary{
-			Subtotal:      30000,
-			Discount:      0,
-			Tax:           0,
-			ServiceCharge: 0,
-			Total:         30000,
+			Subtotal:      NewMoney(30000, IDR),
+			Discount:      NewMoney(0, IDR),
+			Tax:           NewMoney(0, IDR),
+			ServiceCharge: NewMoney(0, IDR),
+			Total:         NewMoney(30000, IDR),
 		},
 
 		Payment: Payment{
 			Method: "CASH",
-			Paid:   50000,
-			Change: 20000,
+			Paid: NewMoney(50000, IDR),
+			Change: NewMoney(20000, IDR),
 		},
 
 		Footer: Footer{
@@ -108,23 +108,23 @@ func TestReceiptDomainModel(t *testing.T) {
 		)
 	}
 
-	if r.Items[0].UnitPrice != 15000 {
+	if r.Items[0].UnitPrice != NewMoney(15000, IDR) {
 		t.Fatalf(
-			"expected unit price 15000, got %d",
+			"expected unit price 15000, got %v",
 			r.Items[0].UnitPrice,
 		)
 	}
 
-	if r.Summary.Total != 30000 {
+	if r.Summary.Total != NewMoney(30000, IDR) {
 		t.Fatalf(
-			"expected total 30000, got %d",
+			"expected total 30000, got %v",
 			r.Summary.Total,
 		)
 	}
 
-	if r.Payment.Paid != 50000 {
+	if r.Payment.Paid != NewMoney(50000, IDR) {
 		t.Fatalf(
-			"expected paid amount 50000, got %d",
+			"expected paid amount 50000, got %v",
 			r.Payment.Paid,
 		)
 	}

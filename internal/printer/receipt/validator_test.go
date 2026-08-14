@@ -29,26 +29,26 @@ func validReceipt() domainreceipt.Receipt {
 				SKU:       "KOPI-001",
 				Name:      "Kopi Susu",
 				Quantity:  2,
-				UnitPrice: 15000,
+				UnitPrice: domainreceipt.NewMoney(15000, domainreceipt.IDR),
 			},
 			{
 				ProductID: "PROD-002",
 				SKU:       "ROTI-001",
 				Name:      "Roti Bakar",
 				Quantity:  1,
-				UnitPrice: 12000,
+				UnitPrice: domainreceipt.NewMoney(12000, domainreceipt.IDR),
 			},
 		},
 
 		Summary: domainreceipt.Summary{
-			Subtotal: 42000,
-			Total:    42000,
+			Subtotal: domainreceipt.NewMoney(42000, domainreceipt.IDR),
+			Total: domainreceipt.NewMoney(42000, domainreceipt.IDR),
 		},
 
 		Payment: domainreceipt.Payment{
 			Method: "CASH",
-			Paid:   50000,
-			Change: 8000,
+			Paid: domainreceipt.NewMoney(50000, domainreceipt.IDR),
+			Change: domainreceipt.NewMoney(8000, domainreceipt.IDR),
 		},
 
 		Footer: domainreceipt.Footer{
@@ -139,10 +139,10 @@ func TestValidatorRequiresItems(t *testing.T) {
 
 	input := validReceipt()
 	input.Items = nil
-	input.Summary.Subtotal = 0
-	input.Summary.Total = 0
-	input.Payment.Paid = 0
-	input.Payment.Change = 0
+	input.Summary.Subtotal = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.Total = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Payment.Paid = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Payment.Change = domainreceipt.NewMoney(0, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -206,7 +206,7 @@ func TestValidatorRejectsNegativeUnitPrice(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Items[0].UnitPrice = -1
+	input.Items[0].UnitPrice = domainreceipt.NewMoney(-1, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -222,11 +222,11 @@ func TestValidatorAcceptsZeroUnitPrice(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Items[0].UnitPrice = 0
-	input.Summary.Subtotal = 12000
-	input.Summary.Total = 12000
-	input.Payment.Paid = 12000
-	input.Payment.Change = 0
+	input.Items[0].UnitPrice = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.Subtotal = domainreceipt.NewMoney(12000, domainreceipt.IDR)
+	input.Summary.Total = domainreceipt.NewMoney(12000, domainreceipt.IDR)
+	input.Payment.Paid = domainreceipt.NewMoney(12000, domainreceipt.IDR)
+	input.Payment.Change = domainreceipt.NewMoney(0, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -242,7 +242,7 @@ func TestValidatorRejectsIncorrectSubtotal(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Summary.Subtotal = 99999
+	input.Summary.Subtotal = domainreceipt.NewMoney(99999, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -258,7 +258,7 @@ func TestValidatorRejectsIncorrectTotal(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Summary.Total = 99999
+	input.Summary.Total = domainreceipt.NewMoney(99999, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -275,14 +275,14 @@ func TestValidatorCalculatesTotalWithDiscount(t *testing.T) {
 
 	input := validReceipt()
 
-	input.Summary.Subtotal = 42000
-	input.Summary.Discount = 5000
-	input.Summary.Tax = 0
-	input.Summary.ServiceCharge = 0
-	input.Summary.Total = 37000
+	input.Summary.Subtotal = domainreceipt.NewMoney(42000, domainreceipt.IDR)
+	input.Summary.Discount = domainreceipt.NewMoney(5000, domainreceipt.IDR)
+	input.Summary.Tax = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.ServiceCharge = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.Total = domainreceipt.NewMoney(37000, domainreceipt.IDR)
 
-	input.Payment.Paid = 50000
-	input.Payment.Change = 13000
+	input.Payment.Paid = domainreceipt.NewMoney(50000, domainreceipt.IDR)
+	input.Payment.Change = domainreceipt.NewMoney(13000, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -299,14 +299,14 @@ func TestValidatorCalculatesTotalWithTax(t *testing.T) {
 
 	input := validReceipt()
 
-	input.Summary.Subtotal = 42000
-	input.Summary.Discount = 0
-	input.Summary.Tax = 4200
-	input.Summary.ServiceCharge = 0
-	input.Summary.Total = 46200
+	input.Summary.Subtotal = domainreceipt.NewMoney(42000, domainreceipt.IDR)
+	input.Summary.Discount = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.Tax = domainreceipt.NewMoney(4200, domainreceipt.IDR)
+	input.Summary.ServiceCharge = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.Total = domainreceipt.NewMoney(46200, domainreceipt.IDR)
 
-	input.Payment.Paid = 50000
-	input.Payment.Change = 3800
+	input.Payment.Paid = domainreceipt.NewMoney(50000, domainreceipt.IDR)
+	input.Payment.Change = domainreceipt.NewMoney(3800, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -323,11 +323,11 @@ func TestValidatorRejectsNegativeTotal(t *testing.T) {
 
 	input := validReceipt()
 
-	input.Summary.Subtotal = 42000
-	input.Summary.Discount = 50000
-	input.Summary.Tax = 0
-	input.Summary.ServiceCharge = 0
-	input.Summary.Total = -8000
+	input.Summary.Subtotal = domainreceipt.NewMoney(42000, domainreceipt.IDR)
+	input.Summary.Discount = domainreceipt.NewMoney(50000, domainreceipt.IDR)
+	input.Summary.Tax = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.ServiceCharge = domainreceipt.NewMoney(0, domainreceipt.IDR)
+	input.Summary.Total = domainreceipt.NewMoney(-8000, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -359,7 +359,7 @@ func TestValidatorRejectsNegativePaidAmount(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Payment.Paid = -1
+	input.Payment.Paid = domainreceipt.NewMoney(-1, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -375,8 +375,8 @@ func TestValidatorRejectsInsufficientPayment(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Payment.Paid = 30000
-	input.Payment.Change = 0
+	input.Payment.Paid = domainreceipt.NewMoney(30000, domainreceipt.IDR)
+	input.Payment.Change = domainreceipt.NewMoney(0, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -392,8 +392,8 @@ func TestValidatorRejectsIncorrectChange(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Payment.Paid = 50000
-	input.Payment.Change = 9999
+	input.Payment.Paid = domainreceipt.NewMoney(50000, domainreceipt.IDR)
+	input.Payment.Change = domainreceipt.NewMoney(9999, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -409,7 +409,7 @@ func TestValidatorAllowsCalculatedChange(t *testing.T) {
 	validator := NewValidator()
 
 	input := validReceipt()
-	input.Payment.Change = 0
+	input.Payment.Change = domainreceipt.NewMoney(0, domainreceipt.IDR)
 
 	err := validator.Validate(input)
 
@@ -459,7 +459,7 @@ func TestValidatorItemCases(t *testing.T) {
 		{
 			name: "negative price",
 			mutate: func(r *domainreceipt.Receipt) {
-				r.Items[0].UnitPrice = -100
+				r.Items[0].UnitPrice = domainreceipt.NewMoney(-100, domainreceipt.IDR)
 			},
 			wantErr: ErrPriceInvalid,
 		},

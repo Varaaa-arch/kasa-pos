@@ -42,9 +42,9 @@ func (r *ItemRenderer) Render(
 
 	// Quantity x unit price.
 	qtyPrice := fmt.Sprintf(
-		"%d x Rp%s",
+		"%d x %s",
 		item.Quantity,
-		formatMoney(item.UnitPrice),
+		item.UnitPrice.String(),
 	)
 
 	// Item subtotal.
@@ -56,9 +56,7 @@ func (r *ItemRenderer) Render(
 		},
 	)
 
-	totalText := "Rp" + formatMoney(
-		calculation.ItemsTotal,
-	)
+	totalText := calculation.ItemsTotal.String()
 
 	// Need at least one character between
 	// the left and right columns.

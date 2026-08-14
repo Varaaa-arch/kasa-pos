@@ -5,14 +5,14 @@ import (
 )
 
 type Calculation struct {
-	ItemsTotal    int64
-	Subtotal      int64
-	Discount      int64
-	Tax           int64
-	ServiceCharge int64
-	Total         int64
-	Paid          int64
-	Change        int64
+	ItemsTotal    domainreceipt.Money
+	Subtotal      domainreceipt.Money
+	Discount      domainreceipt.Money
+	Tax           domainreceipt.Money
+	ServiceCharge domainreceipt.Money
+	Total         domainreceipt.Money
+	Paid          domainreceipt.Money
+	Change        domainreceipt.Money
 }
 
 type Calculator struct{}
@@ -24,29 +24,35 @@ func NewCalculator() *Calculator {
 func (c *Calculator) Calculate(
 	input domainreceipt.Receipt,
 ) Calculation {
-	var itemsTotal int64
+	itemsTotal := domainreceipt.ZeroMoney(domainreceipt.IDR)
 
 	for _, item := range input.Items {
-		itemsTotal += int64(item.Quantity) * item.UnitPrice
+		itemsTotal = itemsTotal.Add(
+			item.UnitPrice.Mul(
+				int64(item.Quantity),
+			),
+		)
 	}
 
 	subtotal := itemsTotal
 
-	discount := input.Summary.Discount
-	tax := input.Summary.Tax
-	serviceCharge := input.Summary.ServiceCharge
+	discount := moneyOrZero(input.Summary.Discount)
+	tax := moneyOrZero(input.Summary.Tax)
+	serviceCharge := moneyOrZero(input.Summary.ServiceCharge)
 
-	total := subtotal -
-		discount +
-		tax +
-		serviceCharge
+	total := subtotal.
+		Sub(discount).
+		Add(tax).
+		Add(serviceCharge)
 
-	paid := input.Payment.Paid
+	paid := moneyOrZero(input.Payment.Paid)
 
-	change := paid - total
+	change := paid.Sub(total)
 
-	if change < 0 {
-		change = 0
+	if change.IsNegative() {
+		change = domainreceipt.ZeroMoney(
+			domainreceipt.IDR,
+		)
 	}
 
 	return Calculation{
@@ -59,4 +65,13 @@ func (c *Calculator) Calculate(
 		Paid:          paid,
 		Change:        change,
 	}
+}
+
+// moneyOrZero returns m if it has a valid currency,
+// otherwise returns ZeroMoney(IDR).
+func moneyOrZero(m domainreceipt.Money) domainreceipt.Money {
+	if m.Currency == "" {
+		return domainreceipt.ZeroMoney(domainreceipt.IDR)
+	}
+	return m
 }

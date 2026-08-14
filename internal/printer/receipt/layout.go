@@ -276,38 +276,36 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		lines,
 		l.LeftRight(
 			"Subtotal",
-			"Rp"+formatMoney(calculation.Subtotal),
+			calculation.Subtotal.String(),
 		),
 	)
 
-	if input.Summary.Discount != 0 {
+	if !input.Summary.Discount.IsZero() {
 		lines = append(
 			lines,
 			l.LeftRight(
 				"Diskon",
-				"Rp"+formatMoney(input.Summary.Discount),
+				input.Summary.Discount.String(),
 			),
 		)
 	}
 
-	if input.Summary.Tax != 0 {
+	if !input.Summary.Tax.IsZero() {
 		lines = append(
 			lines,
 			l.LeftRight(
 				"Pajak",
-				"Rp"+formatMoney(input.Summary.Tax),
+				input.Summary.Tax.String(),
 			),
 		)
 	}
 
-	if input.Summary.ServiceCharge != 0 {
+	if !input.Summary.ServiceCharge.IsZero() {
 		lines = append(
 			lines,
 			l.LeftRight(
 				"Biaya Layanan",
-				"Rp"+formatMoney(
-					input.Summary.ServiceCharge,
-				),
+				input.Summary.ServiceCharge.String(),
 			),
 		)
 	}
@@ -318,7 +316,7 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		lines,
 		l.LeftRight(
 			"TOTAL",
-			"Rp"+formatMoney(total),
+			total.String(),
 		),
 	)
 
@@ -345,7 +343,7 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		lines,
 		l.LeftRight(
 			"Bayar",
-			"Rp"+formatMoney(calculation.Paid),
+			calculation.Paid.String(),
 		),
 	)
 
@@ -355,7 +353,7 @@ func (l Layout) Render(input domainreceipt.Receipt) []string {
 		lines,
 		l.LeftRight(
 			"Kembali",
-			"Rp"+formatMoney(change),
+			change.String(),
 		),
 	)
 

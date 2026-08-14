@@ -110,7 +110,7 @@ func (v *Validator) Validate(
 			}
 		}
 
-		if item.UnitPrice < 0 {
+		if item.UnitPrice.IsNegative() {
 			return ValidationError{
 				Field: fmt.Sprintf(
 					"items[%d].unit_price",
@@ -125,23 +125,23 @@ func (v *Validator) Validate(
 
 	calculation := calculator.Calculate(input)
 
-	if input.Summary.Subtotal != 0 &&
-		input.Summary.Subtotal != calculation.Subtotal {
+	if !input.Summary.Subtotal.IsZero() &&
+		!input.Summary.Subtotal.Equal(calculation.Subtotal) {
 		return ValidationError{
 			Field: "summary.subtotal",
 			Err:   ErrTotalInvalid,
 		}
 	}
 
-	if calculation.Total < 0 {
+	if calculation.Total.IsNegative() {
 		return ValidationError{
 			Field: "summary.total",
 			Err:   ErrTotalInvalid,
 		}
 	}
 
-	if input.Summary.Total != 0 &&
-		input.Summary.Total != calculation.Total {
+	if !input.Summary.Total.IsZero() &&
+		!input.Summary.Total.Equal(calculation.Total) {
 		return ValidationError{
 			Field: "summary.total",
 			Err:   ErrTotalInvalid,
@@ -149,29 +149,29 @@ func (v *Validator) Validate(
 	}
 
 	if strings.TrimSpace(input.Payment.Method) == "" &&
-		input.Payment.Paid != 0 {
+		!input.Payment.Paid.IsZero() {
 		return ValidationError{
 			Field: "payment.method",
 			Err:   ErrPaymentInvalid,
 		}
 	}
 
-	if input.Payment.Paid < 0 {
+	if input.Payment.Paid.IsNegative() {
 		return ValidationError{
 			Field: "payment.paid",
 			Err:   ErrPaymentAmountInvalid,
 		}
 	}
 
-	if calculation.Paid < calculation.Total {
+	if calculation.Paid.LessThan(calculation.Total) {
 		return ValidationError{
 			Field: "payment.change",
 			Err:   ErrChangeInvalid,
 		}
 	}
 
-	if input.Payment.Change != 0 &&
-		input.Payment.Change != calculation.Change {
+	if !input.Payment.Change.IsZero() &&
+		!input.Payment.Change.Equal(calculation.Change) {
 		return ValidationError{
 			Field: "payment.change",
 			Err:   ErrChangeInvalid,
