@@ -21,7 +21,7 @@ func newTestHandler(printer *mock.Printer) *Handler {
 }
 
 func validPrintJSON() string {
-    return `{
+	return `{
         "store": {
             "name": "TOKO KASA",
             "address": "Jl. Contoh No. 123",
@@ -401,6 +401,126 @@ func TestGenerateJobIDsAreDifferent(t *testing.T) {
 		t.Fatalf(
 			"generated duplicate job IDs: %q",
 			first,
+		)
+	}
+}
+
+func TestPrintHandlerCreatesPrintJob(t *testing.T) {
+	printer := &mock.Printer{}
+	handler := newTestHandler(printer)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf(
+			"expected 200, got %d: %s",
+			rec.Code,
+			rec.Body.String(),
+		)
+	}
+
+	if printer.OpenCount != 1 {
+		t.Fatalf(
+			"expected OpenCount=1, got %d",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"expected WriteCount=1, got %d",
+			printer.WriteCount,
+		)
+	}
+
+	if printer.CloseCount != 1 {
+		t.Fatalf(
+			"expected CloseCount=1, got %d",
+			printer.CloseCount,
+		)
+	}
+
+	if len(printer.Data) == 0 {
+		t.Fatal("expected printed data")
+	}
+
+	response := rec.Body.String()
+
+	if !strings.Contains(
+		response,
+		`"job_id"`,
+	) {
+		t.Fatalf(
+			"response missing job_id: %s",
+			response,
+		)
+	}
+
+	if !strings.Contains(
+		response,
+		"receipt printed successfully",
+	) {
+		t.Fatalf(
+			"unexpected response: %s",
+			response,
+		)
+	}
+}
+
+func TestPrintHandlerPrintJobFailure(t *testing.T) {
+	printer := &mock.Printer{
+		WriteErr: mock.ErrWrite,
+	}
+
+	handler := newTestHandler(printer)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+
+	req.Header.Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf(
+			"expected 500, got %d: %s",
+			rec.Code,
+			rec.Body.String(),
+		)
+	}
+
+	if printer.OpenCount != 1 {
+		t.Fatalf(
+			"expected OpenCount=1, got %d",
+			printer.OpenCount,
+		)
+	}
+
+	if printer.WriteCount != 1 {
+		t.Fatalf(
+			"expected WriteCount=1, got %d",
+			printer.WriteCount,
 		)
 	}
 }

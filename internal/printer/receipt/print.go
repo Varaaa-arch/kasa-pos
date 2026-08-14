@@ -50,3 +50,34 @@ func Print(
 
 	return nil
 }
+
+func CreatePrintJob(
+	id string,
+	input domainreceipt.Receipt,
+) PrintJob {
+	return NewPrintJob(id, input)
+}
+
+func (j *PrintJob) Run(
+	printer transport.Printer,
+	renderer *Renderer,
+) error {
+	if err := j.Start(); err != nil {
+		return err
+	}
+
+	if err := Print(
+		printer,
+		renderer,
+		j.Receipt,
+	); err != nil {
+		_ = j.Fail(err)
+		return err
+	}
+
+	if err := j.Complete(); err != nil {
+		return err
+	}
+
+	return nil
+}

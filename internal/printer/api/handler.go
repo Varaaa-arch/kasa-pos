@@ -208,10 +208,14 @@ func (h *Handler) Print(
 		)
 	}
 
-	err = printerreceipt.Print(
+	job := printerreceipt.NewPrintJob(
+		jobID,
+		input,
+	)
+
+	err = job.Run(
 		h.Printer,
 		h.Renderer,
-		input,
 	)
 
 	if err != nil {
@@ -236,8 +240,9 @@ func (h *Handler) Print(
 
 		if h.Logger != nil {
 			h.Logger.Printf(
-				"print failed: job_id=%s error=%v",
+				"print failed: job_id=%s status=%s error=%v",
 				jobID,
+				job.Status,
 				err,
 			)
 		}
