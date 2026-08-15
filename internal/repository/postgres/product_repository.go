@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 
+	"pos-system/internal/db"
 	"pos-system/internal/domain/product"
 )
 
 var ErrProductNotFound = errors.New("product not found")
+
+var ErrInsufficientStock = errors.New("insufficient stock")
 
 type ProductRepository struct {
 	db *sql.DB
@@ -272,6 +275,47 @@ func (r *ProductRepository) Delete(
 
 	if rowsAffected == 0 {
 		return ErrProductNotFound
+	}
+
+	return nil
+}
+
+func (r *ProductRepository) ReduceStockTx(
+	ctx context.Context,
+	tx db.DBTX,
+	productID string,
+	quantity int,
+) error {
+	result, err := tx.ExecContext(
+		ctx,
+		`
+		UPDATE products
+		SET
+			stock = stock - $1,
+			updated_at = NOW()
+		WHERE id = $2
+		AND stock >= $1
+		`,
+		quantity,
+		productID,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"reduce stock: %w",
+			err,
+		)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf(
+			"reduce stock rows affected: %w",
+			err,
+		)
+	}
+
+	if rows == 0 {
+		return ErrInsufficientStock
 	}
 
 	return nil

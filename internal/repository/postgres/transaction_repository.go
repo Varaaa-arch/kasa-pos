@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"pos-system/internal/db"
 	"pos-system/internal/domain/transaction"
 )
 
@@ -110,6 +111,82 @@ func (r *TransactionRepository) Create(
 			"commit transaction: %w",
 			err,
 		)
+	}
+
+	return nil
+}
+
+func (r *TransactionRepository) CreateTx(
+	ctx context.Context,
+	tx db.DBTX,
+	t transaction.Transaction,
+) error {
+	_, err := tx.ExecContext(
+		ctx,
+		`
+		INSERT INTO transactions (
+			id,
+			invoice_number,
+			subtotal,
+			discount,
+			tax,
+			service_charge,
+			total,
+			paid_amount,
+			change,
+			payment_method,
+			status,
+			created_at
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		`,
+		t.ID,
+		t.InvoiceNumber,
+		t.Subtotal,
+		t.Discount,
+		t.Tax,
+		t.ServiceCharge,
+		t.Total,
+		t.PaidAmount,
+		t.Change,
+		t.PaymentMethod,
+		t.Status,
+		t.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert transaction: %w", err)
+	}
+
+	for _, item := range t.Items {
+		if _, err := tx.ExecContext(
+			ctx,
+			`
+			INSERT INTO transaction_items (
+				id,
+				transaction_id,
+				product_id,
+				sku,
+				name,
+				quantity,
+				unit_price,
+				subtotal
+			)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+			`,
+			item.ID,
+			item.TransactionID,
+			item.ProductID,
+			item.SKU,
+			item.Name,
+			item.Quantity,
+			item.UnitPrice,
+			item.Subtotal,
+		); err != nil {
+			return fmt.Errorf(
+				"insert transaction item: %w",
+				err,
+			)
+		}
 	}
 
 	return nil
