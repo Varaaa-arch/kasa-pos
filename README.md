@@ -1,6 +1,6 @@
 # KASA
 
-**Modern Point of Sale — dari layar kasir sampai struk fisik.**
+**Modern Point of Sale (dari layar kasir sampai struk fisik).**
 
 KASA adalah sistem POS lokal yang menghubungkan checkout web, transaksi atomik di database, dan cetak struk thermal via Print Agent.
 
@@ -149,10 +149,4 @@ migrations/               # SQL migrations
 
 ## Status
 
-🟡 **In development** — core checkout, stock, transaksi, dan integrasi Print Agent sudah berjalan. Autentikasi dan fitur lanjutan masih dalam roadmap.
-
----
-
-## License
-
-Portfolio project — lihat repository untuk detail lisensi.
+🟡 **In development** core checkout, stock, transaksi, dan integrasi Print Agent sudah berjalan. Autentikasi dan fitur lanjutan masih dalam roadmap.
