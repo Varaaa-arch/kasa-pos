@@ -283,10 +283,20 @@ func TestAtomicCheckoutConcurrentStock(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	testRunID := uuid.NewString()[:8]
+	invoicePrefix := fmt.Sprintf("CONCURRENT-%s-", testRunID)
+
 	t.Cleanup(func() {
 		_, _ = database.ExecContext(
 			ctx,
-			`DELETE FROM transactions WHERE invoice_number LIKE 'CONCURRENT-%'`,
+			`DELETE FROM transaction_items WHERE transaction_id IN (SELECT id FROM transactions WHERE invoice_number LIKE $1)`,
+			invoicePrefix+"%",
+		)
+
+		_, _ = database.ExecContext(
+			ctx,
+			`DELETE FROM transactions WHERE invoice_number LIKE $1`,
+			invoicePrefix+"%",
 		)
 
 		_, _ = database.ExecContext(
@@ -337,7 +347,8 @@ func TestAtomicCheckoutConcurrentStock(t *testing.T) {
 					PaidAmount:    10000,
 					PaymentMethod: "CASH",
 					InvoiceNumber: fmt.Sprintf(
-						"CONCURRENT-%d",
+						"%s%d",
+						invoicePrefix,
 						i,
 					),
 				},

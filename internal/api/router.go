@@ -4,6 +4,8 @@ import "net/http"
 
 func NewRouter(
 	productHandler *ProductHandler,
+	transactionHandler *TransactionHandler,
+	checkoutHandler *CheckoutHandler,
 ) http.Handler {
 	mux := http.NewServeMux()
 
@@ -17,8 +19,18 @@ func NewRouter(
 		mux.HandleFunc("DELETE /products/{id}", productHandler.Delete)
 	}
 
+	if checkoutHandler != nil {
+		mux.HandleFunc("POST /checkout", checkoutHandler.Checkout)
+	}
+
+	if transactionHandler != nil {
+		mux.HandleFunc("GET /transactions", transactionHandler.List)
+		mux.HandleFunc("GET /transactions/{id}", transactionHandler.GetByID)
+	}
+
 	return Chain(
 		mux,
+		CORS,
 		RequestLogger,
 		Recover,
 	)

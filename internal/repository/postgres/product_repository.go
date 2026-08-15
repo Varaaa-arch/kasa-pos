@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"pos-system/internal/db"
 	"pos-system/internal/domain/product"
 )
@@ -60,6 +62,10 @@ func (r *ProductRepository) GetByID(
 	ctx context.Context,
 	id string,
 ) (product.Product, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return product.Product{}, ErrProductNotFound
+	}
+
 	var p product.Product
 
 	err := r.db.QueryRowContext(
@@ -209,6 +215,10 @@ func (r *ProductRepository) Update(
 	ctx context.Context,
 	p product.Product,
 ) error {
+	if _, err := uuid.Parse(p.ID); err != nil {
+		return ErrProductNotFound
+	}
+
 	result, err := r.db.ExecContext(
 		ctx,
 		`
@@ -252,6 +262,10 @@ func (r *ProductRepository) Delete(
 	ctx context.Context,
 	id string,
 ) error {
+	if _, err := uuid.Parse(id); err != nil {
+		return ErrProductNotFound
+	}
+
 	result, err := r.db.ExecContext(
 		ctx,
 		`DELETE FROM products WHERE id = $1`,

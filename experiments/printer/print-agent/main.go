@@ -11,7 +11,7 @@ import (
 
 const (
 	printerDevice = "/dev/usb/lp0"
-	listenAddress = "127.0.0.1:8080"
+	listenAddress = "127.0.0.1:8081"
 )
 
 func main() {

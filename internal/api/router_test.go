@@ -15,7 +15,7 @@ func TestHealth(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 
-	NewRouter(nil).ServeHTTP(rec, req)
+	NewRouter(nil, nil, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf(
@@ -41,7 +41,7 @@ func TestHealthMethodNotAllowed(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 
-	NewRouter(nil).ServeHTTP(rec, req)
+	NewRouter(nil, nil, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf(

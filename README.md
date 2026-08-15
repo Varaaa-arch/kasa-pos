@@ -1,612 +1,158 @@
-# 🧾 KASA
+# KASA
 
-> **Modern Point of Sale System — built from the cashier screen to the physical receipt.**
+**Modern Point of Sale — dari layar kasir sampai struk fisik.**
 
-<p align="center">
-  <img src="https://img.shields.io/badge/status-in%20development-F59E0B?style=for-the-badge" alt="Status">
-  <img src="https://img.shields.io/badge/backend-Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
-  <img src="https://img.shields.io/badge/frontend-Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js">
-  <img src="https://img.shields.io/badge/database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/printer-ESC%2FPOS-333333?style=for-the-badge" alt="ESC/POS">
-</p>
+KASA adalah sistem POS lokal yang menghubungkan checkout web, transaksi atomik di database, dan cetak struk thermal via Print Agent.
 
 <p align="center">
-  <strong>KASA</strong> is a local-first POS system designed to connect a modern cashier experience with real-world thermal printer hardware.
+  <img src="https://img.shields.io/badge/Go-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Next.js-000?style=flat-square&logo=next.js&logoColor=white" alt="Next.js">
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/ESC%2FPOS-333?style=flat-square" alt="ESC/POS">
 </p>
 
 ---
 
-## ✦ Why KASA?
+## Kenapa KASA?
 
-Most POS projects stop here:
+Banyak POS berhenti di **checkout + database**. KASA melanjutkan ke **struk fisik**:
 
 ```text
-Product
-   ↓
-Cart
-   ↓
-Checkout
-   ↓
-Database
-   ↓
-Done.
+Cashier UI  →  Go API  →  PostgreSQL (commit)
+                    ↓
+              Print Agent  →  USB  →  BP-LITE58
 ```
 
-KASA doesn't.
+Transaksi **tetap sukses** meski printer gagal. Cetak terjadi **setelah** commit — tidak di dalam SQL transaction.
 
-The interesting part begins when the transaction has to leave the screen:
+---
+
+## Tech Stack
+
+| Layer | Teknologi |
+|-------|-----------|
+| Frontend | Next.js, TypeScript, Tailwind |
+| Backend | Go, REST API |
+| Database | PostgreSQL |
+| Printer | ESC/POS, Go Print Agent, USB |
+
+**Target printer:** BLUEPRINT BP-LITE58 (58mm thermal)
+
+---
+
+## Arsitektur Singkat
 
 ```text
-                    ┌──────────────┐
-                    │    CASHIER   │
-                    └──────┬───────┘
-                           │
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│  POS Web    │────▶│  POS API    │────▶│ PostgreSQL   │
+│  :3000      │     │  :8080      │     │              │
+└─────────────┘     └──────┬──────┘     └──────────────┘
+                           │ commit OK
                            ▼
-                    ┌──────────────┐
-                    │   POS WEB    │
-                    └──────┬───────┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │   GO API     │
-                    └──────┬───────┘
-                           │
-                  ┌────────┴────────┐
-                  ▼                 ▼
-            ┌──────────┐     ┌────────────┐
-            │DATABASE  │     │ PRINT JOB  │
-            └──────────┘     └─────┬──────┘
-                                   │
-                                   ▼
-                           ┌───────────────┐
-                           │ GO PRINT AGENT│
-                           └───────┬───────┘
-                                   │
-                                  USB
-                                   │
-                                   ▼
-                           ┌───────────────┐
-                           │  BP-LITE58    │
-                           │ 🧾 RECEIPT    │
-                           └───────────────┘
+                    ┌─────────────┐     ┌──────────────┐
+                    │ Print Agent │────▶│ BP-LITE58    │
+                    │  :8081      │ USB │ (thermal)    │
+                    └─────────────┘     └──────────────┘
 ```
 
-> **A POS isn't finished when the button says "Paid".**
-> **It's finished when the transaction is persisted and the physical workflow can reliably continue.**
+| Service | Port | Fungsi |
+|---------|------|--------|
+| POS Web | `3000` | UI kasir |
+| POS API | `8080` | Produk, checkout, transaksi |
+| Print Agent | `8081` | Render struk & kirim ke printer |
 
 ---
 
-# 🏗️ System Architecture
+## Quick Start
 
-> **Status:** 🟠 Draft — architecture awal, belum final.
->
-> Struktur ini akan terus berubah selama hardware research berlangsung.
-> Detail komunikasi USB terhadap **BLUEPRINT BP-LITE58** belum dianggap final.
+### 1. Database
+
+```bash
+docker run -d --name pos-postgres \
+  -e POSTGRES_USER=pos -e POSTGRES_PASSWORD=pos -e POSTGRES_DB=pos \
+  -p 5434:5432 postgres:17
+```
+
+Jalankan migrasi (lihat folder `migrations/`).
+
+### 2. Environment
+
+```bash
+cp .env.example .env
+```
+
+```env
+DATABASE_URL=postgres://pos:pos@localhost:5434/pos?sslmode=disable
+PRINT_AGENT_URL=http://127.0.0.1:8081
+```
+
+### 3. Jalankan services
+
+```bash
+# Terminal 1 — API
+go run ./cmd/pos-api
+
+# Terminal 2 — Print Agent (butuh printer USB atau POC)
+go run ./experiments/printer/print-agent
+
+# Terminal 3 — Web
+cd apps/web
+NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev
+```
+
+Buka **http://localhost:3000**
 
 ---
 
-## Transaction Flow
+## Checkout Flow
+
+1. Kasir tambah produk ke keranjang
+2. `POST /checkout` → atomic commit + stock reduction
+3. Receipt dibuat dari transaksi
+4. Print Agent menerima `POST /print` dengan idempotency key
+5. Response `201` + `print_job.status` (`COMPLETED` atau `FAILED`)
+
+---
+
+## Testing
+
+```bash
+# Go
+go test ./...
+go test -race ./...
+
+# Web
+cd apps/web
+npm run lint
+npx tsc --noEmit
+npm run build
+npm run test:e2e   # butuh API + web sudah running
+```
+
+---
+
+## Struktur Project
 
 ```text
-┌──────────────┐
-│   POS Web    │
-│              │
-│  Cashier UI  │
-└──────┬───────┘
-       │
-       │ HTTP
-       ▼
-┌──────────────┐
-│    Go API    │
-│              │
-│ Business     │
-│ Logic        │
-└──────┬───────┘
-       │
-       │ SQL
-       ▼
-┌──────────────┐
-│  PostgreSQL  │
-│              │
-│ Source of    │
-│ Truth        │
-└──────────────┘
+cmd/pos-api/              # REST API server
+experiments/printer/      # Print Agent & hardware POC
+internal/
+  api/                    # HTTP handlers
+  service/checkout/       # Atomic checkout + print orchestration
+  printer/                # ESC/POS, receipt, print agent client
+apps/web/                 # Next.js cashier UI
+docs/                     # Arsitektur & riset printer
+migrations/               # SQL migrations
 ```
 
 ---
 
-## Print Flow
+## Status
 
-```text
-┌──────────────┐
-│   POS Web    │
-└──────┬───────┘
-       │
-       │ localhost
-       ▼
-┌────────────────────┐
-│  Go Print Agent    │
-│                    │
-│ • Print Queue      │
-│ • ESC/POS Renderer │
-│ • Printer Status   │
-└─────────┬──────────┘
-          │
-          │ USB
-          ▼
-┌────────────────────┐
-│ BLUEPRINT BP-LITE58│
-│                    │
-│ Thermal Printer    │
-└────────────────────┘
-```
+🟡 **In development** — core checkout, stock, transaksi, dan integrasi Print Agent sudah berjalan. Autentikasi dan fitur lanjutan masih dalam roadmap.
 
 ---
 
-# 🧩 Components
+## License
 
-| Component | Responsibility |
-|---|---|
-| **POS Web** | Interface kasir untuk produk, cart, checkout, pembayaran, dan status transaksi. |
-| **Go API** | Menangani business logic, transaksi, inventory, authentication, dan orchestration. |
-| **PostgreSQL** | Persistent source of truth untuk data aplikasi. |
-| **Go Print Agent** | Local service yang menjadi bridge antara POS dan printer fisik. |
-| **ESC/POS Engine** | Mengubah receipt menjadi command yang dapat dimengerti thermal printer. |
-| **BP-LITE58** | Target thermal receipt printer untuk hardware integration pertama. |
-
----
-
-# 🖨️ Hardware Integration
-
-## Target Hardware
-
-```text
-┌────────────────────────────────────┐
-│          BLUEPRINT BP-LITE58       │
-├────────────────────────────────────┤
-│ Type       : Thermal Receipt       │
-│ Paper      : ~57 mm                 │
-│ Connection : USB + Bluetooth        │
-│ Protocol   : ESC/POS                │
-└────────────────────────────────────┘
-```
-
-> **Important:** KASA tidak mengasumsikan bagaimana printer bekerja hanya berdasarkan spesifikasi. Jalur USB akan ditentukan berdasarkan hasil eksperimen pada device sebenarnya.
-
-Research:
-
-```text
-docs/printer/
-├── spesifikasi.md
-├── usb-research.md
-├── hasil-pengujian.md
-└── troubleshooting.md
-```
-
----
-
-# 🧾 Receipt Pipeline
-
-Receipt tidak dibuat langsung oleh UI.
-
-```text
-Transaction
-     │
-     ▼
-Receipt Data
-     │
-     ▼
-Receipt Renderer
-     │
-     ▼
-ESC/POS Commands
-     │
-     ▼
-Print Agent
-     │
-     ▼
-USB Transport
-     │
-     ▼
-BP-LITE58
-     │
-     ▼
-   🧾
-REAL RECEIPT
-```
-
-Hal ini membuat printer layer bisa diganti tanpa mengubah business logic transaksi.
-
----
-
-# 🔄 Transaction ≠ Printing
-
-Printer adalah hardware.
-
-Hardware bisa:
-
-- offline
-- kehabisan kertas
-- disconnected
-- busy
-- gagal menerima data
-
-Karena itu:
-
-```text
-              PAYMENT
-                 │
-                 ▼
-        ┌─────────────────┐
-        │ SAVE TRANSACTION│
-        └────────┬────────┘
-                 │
-                 ▼
-          CREATE PRINT JOB
-                 │
-          ┌──────┴──────┐
-          ▼             ▼
-       SUCCESS        FAILED
-          │             │
-          ▼             ▼
-      COMPLETED       RETRY
-```
-
-### Prinsip utama
-
-> **Printer failure must never silently become transaction failure.**
-
----
-
-# 🗺️ Roadmap
-
-## Phase 01 — 🔌 Hardware Recon
-
-**Current**
-
-- [ ] USB device discovery
-- [ ] VID/PID identification
-- [ ] Linux driver discovery
-- [ ] Device node discovery
-- [ ] USB interface research
-- [ ] ESC/POS validation
-- [ ] First successful print
-
----
-
-## Phase 02 — 🧾 Print Engine
-
-- [ ] Printer abstraction
-- [ ] ESC/POS encoder
-- [ ] Text
-- [ ] Alignment
-- [ ] Bold
-- [ ] Font sizing
-- [ ] Paper feed
-- [ ] Paper cut
-- [ ] Barcode
-- [ ] QR Code
-- [ ] Print status
-- [ ] Retry handling
-
----
-
-## Phase 03 — 🛒 POS Core
-
-- [ ] Product management
-- [ ] Categories
-- [ ] Search
-- [ ] Cart
-- [ ] Checkout
-- [ ] Cash payment
-- [ ] Change calculation
-- [ ] Transaction history
-- [ ] Receipt printing
-
----
-
-## Phase 04 — 📦 Operations
-
-- [ ] Inventory
-- [ ] Stock movement
-- [ ] Barcode scanning
-- [ ] Cashier session
-- [ ] Roles & permissions
-- [ ] Cash drawer tracking
-- [ ] Reporting
-
----
-
-## Phase 05 — ⚡ Reliability
-
-- [ ] Local-first storage
-- [ ] Offline transaction support
-- [ ] Print queue
-- [ ] Persistent retry
-- [ ] Printer health monitoring
-- [ ] Sync mechanism
-- [ ] Conflict handling
-- [ ] Recovery flows
-
----
-
-# 📅 7-Day MVP Sprint
-
-| Day | Focus | Definition of Done |
-|---:|---|---|
-| **01** | 🔌 Hardware Research | BP-LITE58 communication path understood |
-| **02** | 🧾 Print PoC | Go successfully prints a real receipt |
-| **03** | ⚙️ Receipt Engine | Reusable ESC/POS renderer |
-| **04** | 🧠 Backend | Go API + PostgreSQL foundation |
-| **05** | 🖥️ POS UI | Functional cashier flow |
-| **06** | 🔗 Integration | Checkout → transaction → print |
-| **07** | 🧪 Hardening | Error handling + reliable print flow |
-
-### 7-Day Finish Line
-
-```text
-             PRODUCT
-                │
-                ▼
-              CART
-                │
-                ▼
-            CHECKOUT
-                │
-                ▼
-             PAYMENT
-                │
-                ▼
-        TRANSACTION SAVED
-                │
-                ▼
-           PRINT JOB
-                │
-                ▼
-         GO PRINT AGENT
-                │
-                ▼
-               USB
-                │
-                ▼
-           BP-LITE58
-                │
-                ▼
-       ╔════════════════╗
-       ║ 🧾 REAL RECEIPT║
-       ╚════════════════╝
-```
-
----
-
-# 🛠️ Technology Stack
-
-### Frontend
-
-- **Next.js**
-- **React**
-- **TypeScript**
-- **Tailwind CSS**
-- **shadcn/ui**
-
-### Backend
-
-- **Go**
-- REST API
-- SQL
-
-### Data
-
-- **PostgreSQL**
-- SQLite for local/offline components where appropriate
-
-### Hardware
-
-- **USB**
-- **ESC/POS**
-- **Go Print Agent**
-
-### Infrastructure
-
-- Docker
-- GitHub Actions
-- Prometheus / Grafana / Loki *(planned)*
-
-> The stack is intentionally pragmatic. KASA does not introduce distributed infrastructure simply for the sake of complexity.
-
----
-
-# 📂 Repository Structure
-
-```text
-kasa/
-│
-├── apps/
-│   ├── web/
-│   │   └── ...                  # POS Web
-│   │
-│   ├── api/
-│   │   └── ...                  # Go API
-│   │
-│   └── print-agent/
-│       └── ...                  # Local printer service
-│
-├── docs/
-│   ├── architecture/
-│   ├── printer/
-│   └── api/
-│
-├── experiments/
-│   └── hardware/
-│
-├── infra/
-│   └── ...                      # Infrastructure
-│
-├── .github/
-│   └── workflows/
-│
-├── README.md
-└── LICENSE
-```
-
----
-
-# 🧪 Development Philosophy
-
-### 01 — Research before abstraction
-
-Jangan membuat abstraction berdasarkan asumsi hardware.
-
-```text
-Hardware
-   ↓
-Observe
-   ↓
-Experiment
-   ↓
-Understand
-   ↓
-Abstract
-   ↓
-Implement
-```
-
----
-
-### 02 — Keep the physical boundary explicit
-
-```text
-┌──────────────────────────────┐
-│          POS DOMAIN          │
-│                              │
-│ Product / Cart / Transaction │
-└──────────────┬───────────────┘
-               │
-          Print Contract
-               │
-               ▼
-┌──────────────────────────────┐
-│       HARDWARE DOMAIN        │
-│                              │
-│ Renderer / Queue / USB       │
-└──────────────────────────────┘
-```
-
-Business logic should not know whether the printer is:
-
-```text
-USB
-Bluetooth
-Network
-```
-
-It should only know:
-
-```text
-"Print this receipt."
-```
-
----
-
-### 03 — Fail loudly, recover safely
-
-Bad:
-
-```text
-Payment successful
-Printer failed
-Nothing happened
-```
-
-Good:
-
-```text
-✓ Payment successful
-
-⚠ Receipt could not be printed.
-
-[ Retry Printing ]
-[ Continue ]
-```
-
----
-
-# 📌 Current Status
-
-> **🟠 Early Development — Day 1**
-
-The project is currently in the **hardware research stage**.
-
-### Current priority
-
-```text
-BP-LITE58
-    ↓
-USB
-    ↓
-Fedora Linux
-    ↓
-USB Detection
-    ↓
-Communication Path
-    ↓
-Go
-    ↓
-ESC/POS
-    ↓
-🧾 First Print
-```
-
-Until this path is proven, the printer architecture remains **intentionally provisional**.
-
----
-
-# 📚 Documentation
-
-| Document | Purpose |
-|---|---|
-| [`docs/architecture/`](docs/architecture/) | System architecture & design decisions |
-| [`docs/printer/`](docs/printer/) | Printer hardware research |
-| [`docs/printer/usb-research.md`](docs/printer/usb-research.md) | USB communication investigation |
-| [`docs/printer/hasil-pengujian.md`](docs/printer/hasil-pengujian.md) | Printer experiments & results |
-
----
-
-# 🤝 Development
-
-Conventional commit examples:
-
-```text
-feat: add printer USB discovery
-feat: implement ESC/POS text printing
-feat: add receipt renderer
-feat: add transaction creation
-
-fix: handle printer disconnection
-fix: retry failed print jobs
-
-docs: document BP-LITE58 USB interface
-test: add receipt renderer tests
-
-refactor: separate printer transport
-```
-
----
-
-# 📜 License
-
-Licensed under the **Apache License 2.0**.
-
-See [`LICENSE`](LICENSE) for details.
-
----
-
-<p align="center">
-  <strong>Built for the real world.</strong>
-  <br />
-  <sub>Web → Backend → Hardware → Receipt.</sub>
-</p>
-
-<p align="center">
-  <strong>🧾 KASA</strong>
-</p>
+Portfolio project — lihat repository untuk detail lisensi.

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"pos-system/internal/db"
 	"pos-system/internal/domain/transaction"
 )
@@ -196,6 +198,10 @@ func (r *TransactionRepository) GetByID(
 	ctx context.Context,
 	id string,
 ) (transaction.Transaction, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return transaction.Transaction{}, ErrTransactionNotFound
+	}
+
 	var t transaction.Transaction
 
 	err := r.db.QueryRowContext(
