@@ -3,8 +3,13 @@ package checkout
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 
 	"pos-system/internal/db"
 	"pos-system/internal/domain/cart"
@@ -232,6 +237,159 @@ func TestAtomicCheckoutRollbackOnInsufficientStock(t *testing.T) {
 		t.Fatalf(
 			"stock = %d, want 1 (should be unchanged after rollback)",
 			unchanged.Stock,
+		)
+	}
+}
+
+func TestAtomicCheckoutConcurrentStock(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL is not configured")
+	}
+
+	database, err := db.OpenPostgres(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	ctx := context.Background()
+
+	productID := uuid.NewString()
+	transactionRepo := postgres.NewTransactionRepository(database)
+	productRepo := postgres.NewProductRepository(database)
+
+	now := time.Now().UTC()
+
+	_, err = database.ExecContext(
+		ctx,
+		`
+		INSERT INTO products (
+			id, sku, name, price, stock, created_at, updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`,
+		productID,
+		"CONCURRENT-001",
+		"Concurrent Test",
+		10000,
+		1,
+		now,
+		now,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		_, _ = database.ExecContext(
+			ctx,
+			`DELETE FROM transactions WHERE invoice_number LIKE 'CONCURRENT-%'`,
+		)
+
+		_, _ = database.ExecContext(
+			ctx,
+			`DELETE FROM products WHERE id = $1`,
+			productID,
+		)
+	})
+
+	makeCart := func() *cart.Cart {
+		c := cart.New()
+
+		p := product.Product{
+			ID:    productID,
+			SKU:   "CONCURRENT-001",
+			Name:  "Concurrent Test",
+			Price: 10000,
+			Stock: 1,
+		}
+
+		if err := c.AddItem(p, 1); err != nil {
+			t.Fatal(err)
+		}
+
+		return c
+	}
+
+	service := NewAtomicService(
+		database,
+		transactionRepo,
+		productRepo,
+	)
+
+	var wg sync.WaitGroup
+
+	results := make(chan error, 2)
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+
+			_, err := service.Execute(
+				ctx,
+				AtomicRequest{
+					Cart:          makeCart(),
+					PaidAmount:    10000,
+					PaymentMethod: "CASH",
+					InvoiceNumber: fmt.Sprintf(
+						"CONCURRENT-%d",
+						i,
+					),
+				},
+			)
+
+			results <- err
+		}(i)
+	}
+
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	failures := 0
+
+	for err := range results {
+		if err == nil {
+			successes++
+			continue
+		}
+
+		failures++
+	}
+
+	if successes != 1 {
+		t.Fatalf(
+			"expected exactly 1 successful checkout, got %d",
+			successes,
+		)
+	}
+
+	if failures != 1 {
+		t.Fatalf(
+			"expected exactly 1 failed checkout, got %d",
+			failures,
+		)
+	}
+
+	var stock int
+
+	err = database.QueryRowContext(
+		ctx,
+		`SELECT stock FROM products WHERE id = $1`,
+		productID,
+	).Scan(&stock)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stock != 0 {
+		t.Fatalf(
+			"expected final stock 0, got %d",
+			stock,
 		)
 	}
 }
