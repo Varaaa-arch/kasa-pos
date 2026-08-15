@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"pos-system/internal/db"
 	"pos-system/internal/domain/product"
 )
@@ -28,15 +30,27 @@ func TestProductRepositoryCRUD(t *testing.T) {
 
 	now := time.Now().UTC()
 
+	productID := uuid.NewString()
+	sku := "TEST-" + uuid.NewString()
+
 	input := product.Product{
-		ID:        "00000000-0000-0000-0000-000000000001",
-		SKU:       "TEST-001",
+		ID:        productID,
+		SKU:       sku,
 		Name:      "Kopi Susu",
 		Price:     15000,
 		Stock:     100,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+
+	// Cleanup dipasang segera — walaupun assertion gagal, row tetap terhapus.
+	t.Cleanup(func() {
+		_, _ = database.ExecContext(
+			ctx,
+			`DELETE FROM products WHERE id = $1`,
+			productID,
+		)
+	})
 
 	// CREATE
 	if err := repo.Create(ctx, input); err != nil {

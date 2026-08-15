@@ -261,6 +261,8 @@ func TestAtomicCheckoutConcurrentStock(t *testing.T) {
 
 	now := time.Now().UTC()
 
+	concurrentSKU := "CONCURRENT-" + uuid.NewString()
+
 	_, err = database.ExecContext(
 		ctx,
 		`
@@ -270,7 +272,7 @@ func TestAtomicCheckoutConcurrentStock(t *testing.T) {
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		`,
 		productID,
-		"CONCURRENT-001",
+		concurrentSKU,
 		"Concurrent Test",
 		10000,
 		1,
@@ -299,7 +301,7 @@ func TestAtomicCheckoutConcurrentStock(t *testing.T) {
 
 		p := product.Product{
 			ID:    productID,
-			SKU:   "CONCURRENT-001",
+			SKU:   concurrentSKU,
 			Name:  "Concurrent Test",
 			Price: 10000,
 			Stock: 1,
