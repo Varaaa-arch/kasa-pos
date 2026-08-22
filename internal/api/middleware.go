@@ -53,10 +53,11 @@ func RequestLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 
 		log.Printf(
-			"%s %s %s",
+			"%s %s %s request_id=%s",
 			r.Method,
 			r.URL.Path,
 			time.Since(start),
+			RequestIDFromContext(r.Context()),
 		)
 	})
 }
