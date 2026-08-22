@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
@@ -47,48 +48,31 @@ func (h *CheckoutHandler) Checkout(
 	var req CheckoutRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(
-			w,
-			"invalid request body",
-			http.StatusBadRequest,
-		)
+		WriteError(w, r, http.StatusBadRequest, ErrCodeInvalidBody, "Invalid request body")
 		return
 	}
 
 	if len(req.Items) == 0 {
-		http.Error(
-			w,
-			"cart is empty",
-			http.StatusBadRequest,
-		)
+		WriteError(w, r, http.StatusBadRequest, ErrCodeEmptyCart, "Cart is empty")
 		return
 	}
 
 	c := cart.New()
 
 	for _, item := range req.Items {
-		p, err := h.ProductRepo.GetByID(
-			r.Context(),
-			item.ProductID,
-		)
+		p, err := h.ProductRepo.GetByID(r.Context(), item.ProductID)
 		if err != nil {
-			http.Error(
-				w,
-				"product not found",
-				http.StatusBadRequest,
-			)
+			WriteError(w, r, http.StatusBadRequest, ErrCodeProductNotFound, "Product not found")
 			return
 		}
 
-		if err := c.AddItem(
-			p,
-			item.Quantity,
-		); err != nil {
-			http.Error(
-				w,
-				err.Error(),
-				http.StatusBadRequest,
-			)
+		if err := c.AddItem(p, item.Quantity); err != nil {
+			if errors.Is(err, postgres.ErrInsufficientStock) {
+				WriteError(w, r, http.StatusBadRequest, ErrCodeInsufficientStk, "Insufficient stock")
+				return
+			}
+
+			WriteError(w, r, http.StatusBadRequest, ErrCodeValidation, err.Error())
 			return
 		}
 	}
@@ -107,11 +91,17 @@ func (h *CheckoutHandler) Checkout(
 	)
 
 	if err != nil {
-		http.Error(
-			w,
-			err.Error(),
-			http.StatusBadRequest,
-		)
+		if errors.Is(err, checkout.ErrInsufficientCash) {
+			WriteError(w, r, http.StatusBadRequest, ErrCodeInsufficientPay, "Payment is insufficient")
+			return
+		}
+
+		if errors.Is(err, postgres.ErrInsufficientStock) {
+			WriteError(w, r, http.StatusBadRequest, ErrCodeInsufficientStk, "Insufficient stock")
+			return
+		}
+
+		WriteError(w, r, http.StatusBadRequest, ErrCodeValidation, err.Error())
 		return
 	}
 
@@ -127,11 +117,7 @@ func (h *CheckoutHandler) Checkout(
 		)
 	}
 
-	w.Header().Set(
-		"Content-Type",
-		"application/json",
-	)
-
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
 	response := map[string]any{

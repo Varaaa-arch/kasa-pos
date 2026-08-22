@@ -129,6 +129,8 @@ func TestCheckoutHandlerInvalidBody(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInvalidBody)
 }
 
 func TestCheckoutHandlerEmptyItems(t *testing.T) {
@@ -142,6 +144,8 @@ func TestCheckoutHandlerEmptyItems(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeEmptyCart)
 }
 
 func TestCheckoutHandlerSuccess(t *testing.T) {
@@ -357,6 +361,8 @@ func TestCheckoutHandlerProductNotFound(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeProductNotFound)
 }
 
 func TestCheckoutHandlerInsufficientPayment(t *testing.T) {
@@ -404,6 +410,8 @@ func TestCheckoutHandlerInsufficientPayment(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInsufficientPay)
 }
 
 func TestCheckoutHandlerInsufficientStock(t *testing.T) {
@@ -451,4 +459,6 @@ func TestCheckoutHandlerInsufficientStock(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInsufficientStk)
 }
