@@ -115,6 +115,8 @@ func TestTransactionHandler_List_Error(t *testing.T) {
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInternal)
 }
 
 func TestTransactionHandler_GetByID_Success(t *testing.T) {
@@ -174,6 +176,8 @@ func TestTransactionHandler_GetByID_NotFound(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeTransactionNotFound)
 }
 
 func TestTransactionHandler_GetByID_InternalError(t *testing.T) {
@@ -192,4 +196,6 @@ func TestTransactionHandler_GetByID_InternalError(t *testing.T) {
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInternal)
 }

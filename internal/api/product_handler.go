@@ -37,7 +37,7 @@ func (h *ProductHandler) Create(
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		WriteError(w, r, http.StatusBadRequest, ErrCodeInvalidBody, "Invalid request body")
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *ProductHandler) Create(
 	}
 
 	if err := h.service.Create(r.Context(), p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		WriteError(w, r, http.StatusBadRequest, ErrCodeValidation, err.Error())
 		return
 	}
 
@@ -66,11 +66,7 @@ func (h *ProductHandler) List(
 ) {
 	products, err := h.service.List(r.Context())
 	if err != nil {
-		http.Error(
-			w,
-			"failed to list products",
-			http.StatusInternalServerError,
-		)
+		WriteError(w, r, http.StatusInternalServerError, ErrCodeInternal, "Failed to list products")
 		return
 	}
 
@@ -87,15 +83,11 @@ func (h *ProductHandler) GetByID(
 	p, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, postgres.ErrProductNotFound) {
-			http.Error(w, "product not found", http.StatusNotFound)
+			WriteError(w, r, http.StatusNotFound, ErrCodeProductNotFound, "Product not found")
 			return
 		}
 
-		http.Error(
-			w,
-			"failed to get product",
-			http.StatusInternalServerError,
-		)
+		WriteError(w, r, http.StatusInternalServerError, ErrCodeInternal, "Failed to get product")
 		return
 	}
 
@@ -117,7 +109,7 @@ func (h *ProductHandler) Update(
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		WriteError(w, r, http.StatusBadRequest, ErrCodeInvalidBody, "Invalid request body")
 		return
 	}
 
@@ -131,11 +123,11 @@ func (h *ProductHandler) Update(
 
 	if err := h.service.Update(r.Context(), p); err != nil {
 		if errors.Is(err, postgres.ErrProductNotFound) {
-			http.Error(w, "product not found", http.StatusNotFound)
+			WriteError(w, r, http.StatusNotFound, ErrCodeProductNotFound, "Product not found")
 			return
 		}
 
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		WriteError(w, r, http.StatusBadRequest, ErrCodeValidation, err.Error())
 		return
 	}
 
@@ -151,15 +143,11 @@ func (h *ProductHandler) Delete(
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
 		if errors.Is(err, postgres.ErrProductNotFound) {
-			http.Error(w, "product not found", http.StatusNotFound)
+			WriteError(w, r, http.StatusNotFound, ErrCodeProductNotFound, "Product not found")
 			return
 		}
 
-		http.Error(
-			w,
-			"failed to delete product",
-			http.StatusInternalServerError,
-		)
+		WriteError(w, r, http.StatusInternalServerError, ErrCodeInternal, "Failed to delete product")
 		return
 	}
 

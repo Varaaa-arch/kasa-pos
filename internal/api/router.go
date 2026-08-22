@@ -31,6 +31,7 @@ func NewRouter(
 	return Chain(
 		mux,
 		CORS,
+		RequestID,
 		RequestLogger,
 		Recover,
 	)

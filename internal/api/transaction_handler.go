@@ -27,11 +27,7 @@ func (h *TransactionHandler) List(
 ) {
 	items, err := h.service.List(r.Context())
 	if err != nil {
-		http.Error(
-			w,
-			"failed to list transactions",
-			http.StatusInternalServerError,
-		)
+		WriteError(w, r, http.StatusInternalServerError, ErrCodeInternal, "Failed to list transactions")
 		return
 	}
 
@@ -45,28 +41,14 @@ func (h *TransactionHandler) GetByID(
 ) {
 	id := r.PathValue("id")
 
-	item, err := h.service.GetByID(
-		r.Context(),
-		id,
-	)
+	item, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		if errors.Is(
-			err,
-			postgres.ErrTransactionNotFound,
-		) {
-			http.Error(
-				w,
-				"transaction not found",
-				http.StatusNotFound,
-			)
+		if errors.Is(err, postgres.ErrTransactionNotFound) {
+			WriteError(w, r, http.StatusNotFound, ErrCodeTransactionNotFound, "Transaction not found")
 			return
 		}
 
-		http.Error(
-			w,
-			"failed to get transaction",
-			http.StatusInternalServerError,
-		)
+		WriteError(w, r, http.StatusInternalServerError, ErrCodeInternal, "Failed to get transaction")
 		return
 	}
 

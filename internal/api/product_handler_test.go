@@ -107,6 +107,8 @@ func TestHandlerCreateInvalidBody(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInvalidBody)
 }
 
 func TestHandlerCreateValidationFail(t *testing.T) {
@@ -123,6 +125,8 @@ func TestHandlerCreateValidationFail(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeValidation)
 }
 
 // --- GET /products ---
@@ -214,6 +218,8 @@ func TestHandlerGetByIDNotFound(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeProductNotFound)
 }
 
 // --- PUT /products/{id} ---
@@ -257,6 +263,8 @@ func TestHandlerUpdateNotFound(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeProductNotFound)
 }
 
 func TestHandlerUpdateInvalidBody(t *testing.T) {
@@ -272,6 +280,8 @@ func TestHandlerUpdateInvalidBody(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
+
+	assertErrorCode(t, rec, ErrCodeInvalidBody)
 }
 
 // fakeProductRepoUpdateNotFound — Update() always returns ErrProductNotFound.
@@ -312,5 +322,32 @@ func TestHandlerDeleteNotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
+	}
+
+	assertErrorCode(t, rec, ErrCodeProductNotFound)
+}
+
+// ─── assertErrorCode ─────────────────────────────────────────────────────────
+
+// assertErrorCode decodes the response body and asserts:
+//  1. Content-Type is application/json
+//  2. The error.code field matches the expected ErrorCode
+//  3. The error.message field is non-empty
+func assertErrorCode(t *testing.T, rec *httptest.ResponseRecorder, expected ErrorCode) {
+	t.Helper()
+
+	ct := rec.Header().Get("Content-Type")
+	if ct != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+
+	resp := decodeErrorResponse(t, rec.Body.String())
+
+	if resp.Error.Code != expected {
+		t.Errorf("error.code = %q, want %q", resp.Error.Code, expected)
+	}
+
+	if resp.Error.Message == "" {
+		t.Error("error.message must not be empty")
 	}
 }

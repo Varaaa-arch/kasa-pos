@@ -11,6 +11,7 @@ Dokumen ini mencatat keputusan arsitektur yang sudah dibuat selama development K
 | [ADR-003](ADR-003-print-job-lifecycle.md) | Print Job sebagai State Machine | Accepted |
 | [ADR-004](ADR-004-print-target-interface.md) | PrintTarget Interface — PrintJob tidak boleh tahu Hardware | Accepted |
 | [ADR-005](ADR-005-print-idempotency.md) | Idempotency Key untuk POST /print | Accepted |
+| [ADR-006](ADR-006-api-error-model.md) | API Error Model — Structured JSON Error Response | Accepted |
 
 ---
 
