@@ -3,10 +3,11 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"pos-system/internal/domain/cart"
+	applogger "pos-system/internal/logger"
 	printerreceipt "pos-system/internal/printer/receipt"
 	"pos-system/internal/repository/postgres"
 	"pos-system/internal/service/checkout"
@@ -109,11 +110,12 @@ func (h *CheckoutHandler) Checkout(
 	printJob := result.PrintJob
 
 	if printJob.Status == printerreceipt.PrintJobFailed {
-		log.Printf(
-			"checkout completed with print failure: transaction_id=%s print_job_id=%s error=%s",
-			tx.ID,
-			printJob.ID,
-			printJob.Error,
+		slog.WarnContext(r.Context(), applogger.EventPrintFailed,
+			"event", applogger.EventPrintFailed,
+			"request_id", applogger.RequestIDFromContext(r.Context()),
+			"transaction_id", tx.ID,
+			"print_job_id", printJob.ID,
+			"error", printJob.Error,
 		)
 	}
 

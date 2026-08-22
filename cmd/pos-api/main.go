@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 
 	"pos-system/internal/api"
 	"pos-system/internal/db"
+	applogger "pos-system/internal/logger"
 	"pos-system/internal/printer/agent"
 	postgres "pos-system/internal/repository/postgres"
 	checkoutsvc "pos-system/internal/service/checkout"
@@ -20,6 +22,7 @@ import (
 )
 
 func main() {
+	applogger.Init()
 	database, err := db.OpenPostgres(
 		os.Getenv("DATABASE_URL"),
 	)
@@ -67,11 +70,11 @@ func main() {
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("server shutdown: %v", err)
+			slog.Error("server shutdown", "error", err)
 		}
 	}()
 
-	log.Printf("POS API listening on %s", server.Addr)
+	slog.Info("POS API listening", "addr", server.Addr)
 
 	if err := server.ListenAndServe(); err != nil &&
 		!errors.Is(err, http.ErrServerClosed) {

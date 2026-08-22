@@ -1,12 +1,13 @@
 package api
 
 import (
-	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"time"
+
+	applogger "pos-system/internal/logger"
 )
 
 // RequestID injects a unique request ID into each request context and sets the
@@ -19,7 +20,7 @@ func RequestID(next http.Handler) http.Handler {
 			id = newRequestID()
 		}
 
-		ctx := context.WithValue(r.Context(), requestIDKey, id)
+		ctx := applogger.ContextWithRequestID(r.Context(), id)
 		w.Header().Set("X-Request-ID", id)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -52,12 +53,13 @@ func RequestLogger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 
-		log.Printf(
-			"%s %s %s request_id=%s",
-			r.Method,
-			r.URL.Path,
-			time.Since(start),
-			RequestIDFromContext(r.Context()),
+		slog.InfoContext(
+			r.Context(),
+			"http_request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"duration", time.Since(start).String(),
+			"request_id", applogger.RequestIDFromContext(r.Context()),
 		)
 	})
 }

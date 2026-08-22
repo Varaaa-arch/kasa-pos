@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	applogger "pos-system/internal/logger"
 )
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -34,7 +36,7 @@ func TestRequestIDFromContext_Missing(t *testing.T) {
 }
 
 func TestRequestIDFromContext_Set(t *testing.T) {
-	ctx := context.WithValue(context.Background(), requestIDKey, "req_abc123")
+	ctx := applogger.ContextWithRequestID(context.Background(), "req_abc123")
 	id := RequestIDFromContext(ctx)
 	if id != "req_abc123" {
 		t.Fatalf("expected req_abc123, got %q", id)
@@ -138,7 +140,7 @@ func TestWriteError_Structure(t *testing.T) {
 
 func TestWriteError_IncludesRequestID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := context.WithValue(req.Context(), requestIDKey, "req_test999")
+	ctx := applogger.ContextWithRequestID(req.Context(), "req_test999")
 	req = req.WithContext(ctx)
 	rec := httptest.NewRecorder()
 

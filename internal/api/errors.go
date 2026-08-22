@@ -1,22 +1,16 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
+
+	applogger "pos-system/internal/logger"
 )
 
-// contextKey is unexported to avoid collision with other packages.
-type contextKey string
-
-const requestIDKey contextKey = "request_id"
-
-// RequestIDFromContext retrieves the request ID set by RequestID middleware.
-// Returns empty string if not present.
-func RequestIDFromContext(ctx context.Context) string {
-	v, _ := ctx.Value(requestIDKey).(string)
-	return v
-}
+// RequestIDFromContext is a convenience re-export so existing handler/test
+// code in the api package doesn't need a new import.
+// The canonical implementation lives in internal/logger.
+var RequestIDFromContext = applogger.RequestIDFromContext
 
 // ─── Error Codes ─────────────────────────────────────────────────────────────
 
