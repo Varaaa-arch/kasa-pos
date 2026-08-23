@@ -53,8 +53,8 @@ func (h *CheckoutHandler) Checkout(
 		return
 	}
 
-	if len(req.Items) == 0 {
-		WriteError(w, r, http.StatusBadRequest, ErrCodeEmptyCart, "Cart is empty")
+	if err := validateCheckoutRequest(req); err != nil {
+		WriteError(w, r, http.StatusBadRequest, ErrCodeValidation, err.Error())
 		return
 	}
 
