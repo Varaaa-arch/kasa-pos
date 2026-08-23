@@ -300,6 +300,23 @@ func (r *ProductRepository) ReduceStockTx(
 	productID string,
 	quantity int,
 ) error {
+	// SELECT FOR UPDATE mengunci row sampai tx commit/rollback.
+	// Transaksi kedua yang mencoba lock row yang sama akan
+	// diblok sampai transaksi pertama selesai — mencegah lost update.
+	var currentStock int
+	err := tx.QueryRowContext(
+		ctx,
+		`SELECT stock FROM products WHERE id = $1 FOR UPDATE`,
+		productID,
+	).Scan(&currentStock)
+	if err != nil {
+		return fmt.Errorf("lock product row: %w", err)
+	}
+
+	if currentStock < quantity {
+		return ErrInsufficientStock
+	}
+
 	result, err := tx.ExecContext(
 		ctx,
 		`
