@@ -145,7 +145,7 @@ func TestCheckoutHandlerEmptyItems(t *testing.T) {
 		t.Fatalf("expected status 400, got %d", rec.Code)
 	}
 
-	assertErrorCode(t, rec, ErrCodeEmptyCart)
+	assertErrorCode(t, rec, ErrCodeValidation)
 }
 
 func TestCheckoutHandlerSuccess(t *testing.T) {

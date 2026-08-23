@@ -9,22 +9,49 @@ import (
 
 	"github.com/google/uuid"
 
+	"pos-system/internal/db"
 	"pos-system/internal/domain/cart"
 	domaintransaction "pos-system/internal/domain/transaction"
-	"pos-system/internal/repository/postgres"
-	productrepo "pos-system/internal/repository/postgres"
 )
 
+// TxTransactionRepository is the write side of the transaction repo
+// scoped to a single sql.Tx. Extracted so AtomicService can be tested
+// without a real database.
+type TxTransactionRepository interface {
+	CreateTx(
+		ctx context.Context,
+		tx db.DBTX,
+		t domaintransaction.Transaction,
+	) error
+}
+
+// TxProductRepository is the write side of the product repo
+// scoped to a single sql.Tx. Extracted so AtomicService can be tested
+// without a real database.
+type TxProductRepository interface {
+	ReduceStockTx(
+		ctx context.Context,
+		tx db.DBTX,
+		productID string,
+		quantity int,
+	) error
+}
+
+// TxBeginner is satisfied by *sql.DB and any fake that can open a transaction.
+type TxBeginner interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
 type AtomicService struct {
-	db              *sql.DB
-	transactionRepo *postgres.TransactionRepository
-	productRepo     *productrepo.ProductRepository
+	db              TxBeginner
+	transactionRepo TxTransactionRepository
+	productRepo     TxProductRepository
 }
 
 func NewAtomicService(
-	db *sql.DB,
-	transactionRepo *postgres.TransactionRepository,
-	productRepo *productrepo.ProductRepository,
+	db TxBeginner,
+	transactionRepo TxTransactionRepository,
+	productRepo TxProductRepository,
 ) *AtomicService {
 	return &AtomicService{
 		db:              db,
@@ -120,11 +147,7 @@ func (s *AtomicService) Execute(
 
 	defer tx.Rollback()
 
-	if err := s.transactionRepo.CreateTx(
-		ctx,
-		tx,
-		trx,
-	); err != nil {
+	if err := s.transactionRepo.CreateTx(ctx, tx, trx); err != nil {
 		return domaintransaction.Transaction{}, err
 	}
 
