@@ -57,7 +57,7 @@ func setupCheckoutIntegrationRouter(
 	)
 
 	server := httptest.NewServer(
-		NewRouter(productHandler, transactionHandler, checkoutHandler),
+		NewRouter(productHandler, transactionHandler, checkoutHandler, database),
 	)
 
 	cleanup := func() {

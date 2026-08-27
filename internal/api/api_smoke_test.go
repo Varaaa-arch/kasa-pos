@@ -133,7 +133,7 @@ func setupSmokeRouter() (http.Handler, *smokeProductRepo, *smokeTransactionRepo)
 	prodHandler := NewProductHandler(prodSvc)
 	txHandler := NewTransactionHandler(txSvc)
 
-	router := NewRouter(prodHandler, txHandler, nil)
+	router := NewRouter(prodHandler, txHandler, nil, nil)
 	return router, prodRepo, txRepo
 }
 
@@ -147,6 +147,15 @@ func TestAPISmokeHealth(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var response HealthResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Status != "ok" {
+		t.Fatalf("expected status ok, got %q", response.Status)
 	}
 }
 

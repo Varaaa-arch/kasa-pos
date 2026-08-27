@@ -75,7 +75,7 @@ func TestTransactionHandler_List_Success(t *testing.T) {
 	}
 
 	h := newTestTransactionHandler(repo)
-	router := NewRouter(nil, h, nil)
+	router := NewRouter(nil, h, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/transactions", nil)
 	rec := httptest.NewRecorder()
@@ -105,7 +105,7 @@ func TestTransactionHandler_List_Error(t *testing.T) {
 	}
 
 	h := newTestTransactionHandler(repo)
-	router := NewRouter(nil, h, nil)
+	router := NewRouter(nil, h, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/transactions", nil)
 	rec := httptest.NewRecorder()
@@ -136,7 +136,7 @@ func TestTransactionHandler_GetByID_Success(t *testing.T) {
 	}
 
 	h := newTestTransactionHandler(repo)
-	router := NewRouter(nil, h, nil)
+	router := NewRouter(nil, h, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/transactions/tx-123", nil)
 	rec := httptest.NewRecorder()
@@ -166,7 +166,7 @@ func TestTransactionHandler_GetByID_NotFound(t *testing.T) {
 	}
 
 	h := newTestTransactionHandler(repo)
-	router := NewRouter(nil, h, nil)
+	router := NewRouter(nil, h, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/transactions/non-existent", nil)
 	rec := httptest.NewRecorder()
@@ -186,7 +186,7 @@ func TestTransactionHandler_GetByID_InternalError(t *testing.T) {
 	}
 
 	h := newTestTransactionHandler(repo)
-	router := NewRouter(nil, h, nil)
+	router := NewRouter(nil, h, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/transactions/tx-123", nil)
 	rec := httptest.NewRecorder()

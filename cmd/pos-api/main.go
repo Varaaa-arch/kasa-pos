@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"pos-system/internal/api"
@@ -29,7 +30,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer database.Close()
 
 	productRepo := postgres.NewProductRepository(database)
 	transactionRepo := postgres.NewTransactionRepository(database)
@@ -54,24 +54,35 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: api.NewRouter(productHandler, transactionHandler, checkoutHandler),
+		Handler: api.NewRouter(productHandler, transactionHandler, checkoutHandler, database),
 	}
 
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-stop
 
+		slog.Info("Shutting down server...")
+
+		// Stop accepting new requests
 		ctx, cancel := context.WithTimeout(
 			context.Background(),
-			5*time.Second,
+			10*time.Second,
 		)
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
 			slog.Error("server shutdown", "error", err)
 		}
+
+		// Close database connection
+		slog.Info("Closing database connection...")
+		if err := database.Close(); err != nil {
+			slog.Error("database close", "error", err)
+		}
+
+		slog.Info("Shutdown complete")
 	}()
 
 	slog.Info("POS API listening", "addr", server.Addr)
