@@ -125,3 +125,51 @@ func TestHTTPClientPrintFailure(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestHTTPClientPrintTimeoutResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "PRINT_TIMEOUT", http.StatusGatewayTimeout)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(server.URL)
+
+	_, err := client.Print(
+		context.Background(),
+		sampleReceipt(),
+		"txn-timeout-001",
+	)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+
+	if !strings.Contains(err.Error(), "PRINT_TIMEOUT") {
+		t.Fatalf("expected error containing PRINT_TIMEOUT, got: %v", err)
+	}
+}
+
+func TestHTTPClientContextDeadline(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(server.URL)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	_, err := client.Print(
+		ctx,
+		sampleReceipt(),
+		"txn-timeout-002",
+	)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+
+	if !strings.Contains(err.Error(), "PRINT_TIMEOUT") && !strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Fatalf("expected timeout error, got: %v", err)
+	}
+}

@@ -2,12 +2,16 @@ package mock
 
 import (
 	"errors"
+	"time"
 )
 
 type Printer struct {
 	OpenErr  error
 	WriteErr error
 	CloseErr error
+
+	OpenDelay  time.Duration
+	WriteDelay time.Duration
 
 	OpenCount  int
 	WriteCount int
@@ -22,6 +26,10 @@ type Printer struct {
 func (p *Printer) Open() error {
 	p.OpenCount++
 
+	if p.OpenDelay > 0 {
+		time.Sleep(p.OpenDelay)
+	}
+
 	if p.OpenErr != nil {
 		return p.OpenErr
 	}
@@ -34,6 +42,10 @@ func (p *Printer) Open() error {
 
 func (p *Printer) Write(data []byte) (int, error) {
 	p.WriteCount++
+
+	if p.WriteDelay > 0 {
+		time.Sleep(p.WriteDelay)
+	}
 
 	if p.WriteErr != nil {
 		return 0, p.WriteErr
@@ -61,6 +73,8 @@ func (p *Printer) Reset() {
 	p.OpenErr = nil
 	p.WriteErr = nil
 	p.CloseErr = nil
+	p.OpenDelay = 0
+	p.WriteDelay = 0
 
 	p.OpenCount = 0
 	p.WriteCount = 0

@@ -1,14 +1,17 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"pos-system/internal/printer/logging"
 	"pos-system/internal/printer/mock"
 	"pos-system/internal/printer/receipt"
+	"pos-system/internal/printer/transport"
 )
 
 func newTestHandler(printer *mock.Printer) *Handler {
@@ -745,5 +748,123 @@ func TestPrintAPIPrinterFailure(t *testing.T) {
 			"expected 1 write, got %d",
 			printer.WriteCount,
 		)
+	}
+}
+
+func TestPrintHandlerStuckPrinterTimeout(t *testing.T) {
+	printer := &mock.Printer{
+		WriteDelay: 200 * time.Millisecond,
+	}
+
+	handler := newTestHandler(printer)
+	handler.PrintTimeout = 50 * time.Millisecond
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+
+	const key = "test-stuck-timeout-001"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", key)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("expected 504 Gateway Timeout, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if !strings.Contains(rec.Body.String(), "PRINT_TIMEOUT") {
+		t.Fatalf("expected response body to contain PRINT_TIMEOUT, got: %s", rec.Body.String())
+	}
+
+	status, exists := handler.Idempotency.Status(key)
+	if !exists {
+		t.Fatal("expected idempotency record to exist")
+	}
+	if status != receipt.PrintJobFailed {
+		t.Fatalf("expected job status FAILED, got: %s", status)
+	}
+}
+
+func TestPrintHandlerTransportErrPrintTimeout(t *testing.T) {
+	printer := &mock.Printer{
+		WriteErr: transport.ErrPrintTimeout,
+	}
+
+	handler := newTestHandler(printer)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	)
+
+	const key = "test-transport-timeout-001"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", key)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("expected 504 Gateway Timeout, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if !strings.Contains(rec.Body.String(), "PRINT_TIMEOUT") {
+		t.Fatalf("expected response body to contain PRINT_TIMEOUT, got: %s", rec.Body.String())
+	}
+
+	status, exists := handler.Idempotency.Status(key)
+	if !exists {
+		t.Fatal("expected idempotency record to exist")
+	}
+	if status != receipt.PrintJobFailed {
+		t.Fatalf("expected job status FAILED, got: %s", status)
+	}
+}
+
+func TestPrintHandlerContextDeadlineExceeded(t *testing.T) {
+	printer := &mock.Printer{
+		WriteDelay: 200 * time.Millisecond,
+	}
+
+	handler := newTestHandler(printer)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/print",
+		strings.NewReader(validPrintJSON()),
+	).WithContext(ctx)
+
+	const key = "test-ctx-deadline-001"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", key)
+
+	rec := httptest.NewRecorder()
+
+	handler.Print(rec, req)
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("expected 504 Gateway Timeout, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if !strings.Contains(rec.Body.String(), "PRINT_TIMEOUT") {
+		t.Fatalf("expected response body to contain PRINT_TIMEOUT, got: %s", rec.Body.String())
+	}
+
+	status, exists := handler.Idempotency.Status(key)
+	if !exists {
+		t.Fatal("expected idempotency record to exist")
+	}
+	if status != receipt.PrintJobFailed {
+		t.Fatalf("expected job status FAILED, got: %s", status)
 	}
 }

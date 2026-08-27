@@ -1,6 +1,11 @@
 package transport
 
-import "testing"
+import (
+	"errors"
+	"os"
+	"testing"
+	"time"
+)
 
 func TestNewUSBPrinter(t *testing.T) {
 	printer := NewUSBPrinter("/dev/usb/lp0")
@@ -41,5 +46,36 @@ func TestUSBPrinterLifecycle(t *testing.T) {
 	// Initial state.
 	if printer.file != nil {
 		t.Fatal("expected printer to be closed initially")
+	}
+}
+
+func TestUSBPrinterDefaultWriteTimeout(t *testing.T) {
+	if DefaultWriteTimeout != 5*time.Second {
+		t.Fatalf("expected DefaultWriteTimeout 5s, got %v", DefaultWriteTimeout)
+	}
+
+	printer := NewUSBPrinter("/dev/usb/lp0")
+	if printer.WriteTimeout != DefaultWriteTimeout {
+		t.Fatalf("expected WriteTimeout %v, got %v", DefaultWriteTimeout, printer.WriteTimeout)
+	}
+}
+
+type timeoutError struct{}
+
+func (e *timeoutError) Error() string   { return "i/o timeout" }
+func (e *timeoutError) Timeout() bool   { return true }
+func (e *timeoutError) Temporary() bool { return true }
+
+func TestIsTimeout(t *testing.T) {
+	if !isTimeout(os.ErrDeadlineExceeded) {
+		t.Error("expected isTimeout(os.ErrDeadlineExceeded) to be true")
+	}
+
+	if !isTimeout(&timeoutError{}) {
+		t.Error("expected isTimeout(&timeoutError{}) to be true")
+	}
+
+	if isTimeout(errors.New("generic error")) {
+		t.Error("expected isTimeout(generic error) to be false")
 	}
 }

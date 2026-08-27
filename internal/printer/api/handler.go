@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -15,12 +16,18 @@ import (
 	"pos-system/internal/printer/transport"
 )
 
+// DefaultPrintTimeout is the maximum time allowed for a single print job.
+// If the printer doesn't finish within this duration, the job is cancelled
+// and PRINT_TIMEOUT is returned to the caller.
+const DefaultPrintTimeout = 5 * time.Second
+
 type Handler struct {
-	Printer     transport.Printer
-	Renderer    *printerreceipt.Renderer
-	DevicePath  string
-	Logger      *logging.Logger
-	Idempotency *printerreceipt.IdempotencyStore
+	Printer      transport.Printer
+	Renderer     *printerreceipt.Renderer
+	DevicePath   string
+	Logger       *logging.Logger
+	Idempotency  *printerreceipt.IdempotencyStore
+	PrintTimeout time.Duration
 }
 
 func NewHandler(
@@ -31,11 +38,12 @@ func NewHandler(
 	idempotency *printerreceipt.IdempotencyStore,
 ) *Handler {
 	return &Handler{
-		Printer:     printer,
-		Renderer:    renderer,
-		DevicePath:  devicePath,
-		Logger:      logger,
-		Idempotency: idempotency,
+		Printer:      printer,
+		Renderer:     renderer,
+		DevicePath:   devicePath,
+		Logger:       logger,
+		Idempotency:  idempotency,
+		PrintTimeout: DefaultPrintTimeout,
 	}
 }
 
@@ -176,21 +184,25 @@ func (h *Handler) Print(
 		return
 	}
 
-	jobID, err := generateJobID()
-	if err != nil {
-		if h.Logger != nil {
-			h.Logger.Printf(
-				"failed to generate job ID: %v",
-				err,
-			)
-		}
+	var jobID string
+	{
+		id, err := generateJobID()
+		if err != nil {
+			if h.Logger != nil {
+				h.Logger.Printf(
+					"failed to generate job ID: %v",
+					err,
+				)
+			}
 
-		http.Error(
-			w,
-			"failed to generate print job id",
-			http.StatusInternalServerError,
-		)
-		return
+			http.Error(
+				w,
+				"failed to generate print job id",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		jobID = id
 	}
 
 	items := make([]domainreceipt.Item, len(request.Items))
@@ -259,13 +271,51 @@ func (h *Handler) Print(
 
 	h.Idempotency.SetStatus(key, job.Status)
 
-	err = job.Run(
-		h.Printer,
-		h.Renderer,
-	)
+	timeout := h.PrintTimeout
+	if timeout <= 0 {
+		timeout = DefaultPrintTimeout
+	}
+
+	// Wrap print execution in a context timeout.
+	// If the printer is stuck, the job is cancelled after timeout.
+	printCtx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
+
+	type printResult struct {
+		err error
+	}
+	done := make(chan printResult, 1)
+
+	go func() {
+		done <- printResult{err: job.Run(h.Printer, h.Renderer)}
+	}()
+
+	var err error
+	select {
+	case result := <-done:
+		err = result.err
+	case <-printCtx.Done():
+		err = transport.ErrPrintTimeout
+	}
 
 	if err != nil {
-		h.Idempotency.SetStatus(key, job.Status)
+		h.Idempotency.SetStatus(key, printerreceipt.PrintJobFailed)
+
+		// Timeout — printer stuck atau tidak responsif
+		if errors.Is(err, transport.ErrPrintTimeout) || errors.Is(err, context.DeadlineExceeded) {
+			if h.Logger != nil {
+				h.Logger.Printf(
+					"print timeout: job_id=%s",
+					jobID,
+				)
+			}
+			http.Error(
+				w,
+				"PRINT_TIMEOUT",
+				http.StatusGatewayTimeout,
+			)
+			return
+		}
 
 		var validationErr printerreceipt.ValidationError
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,9 @@ import (
 
 	domainreceipt "pos-system/internal/domain/receipt"
 )
+
+// ErrPrintTimeout is returned when the print agent times out or returns PRINT_TIMEOUT.
+var ErrPrintTimeout = errors.New("PRINT_TIMEOUT")
 
 type PrintResponse struct {
 	JobID   string `json:"job_id"`
@@ -70,6 +74,9 @@ func (c *HTTPClient) Print(
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return PrintResponse{}, fmt.Errorf("%w: print request context deadline exceeded: %v", ErrPrintTimeout, err)
+		}
 		return PrintResponse{}, fmt.Errorf("print agent request failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -80,10 +87,14 @@ func (c *HTTPClient) Print(
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		respStr := strings.TrimSpace(string(responseBody))
+		if resp.StatusCode == http.StatusGatewayTimeout || strings.Contains(respStr, "PRINT_TIMEOUT") {
+			return PrintResponse{}, fmt.Errorf("%w: print agent returned %d: %s", ErrPrintTimeout, resp.StatusCode, respStr)
+		}
 		return PrintResponse{}, fmt.Errorf(
 			"print agent returned %d: %s",
 			resp.StatusCode,
-			strings.TrimSpace(string(responseBody)),
+			respStr,
 		)
 	}
 
