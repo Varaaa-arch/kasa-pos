@@ -111,3 +111,51 @@ var (
 	ErrWrite = errors.New("mock printer write error")
 	ErrClose = errors.New("mock printer close error")
 )
+
+// FailingPrinter always fails with the specified error.
+type FailingPrinter struct {
+	FailError error
+}
+
+func (p *FailingPrinter) Open() error {
+	return p.FailError
+}
+
+func (p *FailingPrinter) Write(data []byte) (int, error) {
+	return 0, p.FailError
+}
+
+func (p *FailingPrinter) Close() error {
+	return p.FailError
+}
+
+// SlowPrinter adds delays to simulate slow printer operations.
+type SlowPrinter struct {
+	OpenDelay  time.Duration
+	WriteDelay time.Duration
+	CloseDelay time.Duration
+
+	Data []byte
+}
+
+func (p *SlowPrinter) Open() error {
+	if p.OpenDelay > 0 {
+		time.Sleep(p.OpenDelay)
+	}
+	return nil
+}
+
+func (p *SlowPrinter) Write(data []byte) (int, error) {
+	if p.WriteDelay > 0 {
+		time.Sleep(p.WriteDelay)
+	}
+	p.Data = append(p.Data, data...)
+	return len(data), nil
+}
+
+func (p *SlowPrinter) Close() error {
+	if p.CloseDelay > 0 {
+		time.Sleep(p.CloseDelay)
+	}
+	return nil
+}

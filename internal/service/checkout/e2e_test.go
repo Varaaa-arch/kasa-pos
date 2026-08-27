@@ -165,6 +165,7 @@ func TestEndToEndCheckout(t *testing.T) {
 	if err := job.Run(
 		printer,
 		renderer,
+		nil,
 	); err != nil {
 		t.Fatalf(
 			"print failed: %v",

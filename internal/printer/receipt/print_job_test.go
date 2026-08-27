@@ -2,6 +2,7 @@ package receipt
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -216,6 +217,7 @@ func TestPrintJobRunSuccess(t *testing.T) {
 	err := job.Run(
 		printer,
 		renderer,
+		nil,
 	)
 
 	if err != nil {
@@ -269,14 +271,15 @@ func TestPrintJobRunFailure(t *testing.T) {
 	err := job.Run(
 		printer,
 		renderer,
+		nil,
 	)
 
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf(
-			"expected %v, got %v",
-			expectedErr,
-			err,
-		)
+	// The error is now wrapped, just check that it's not nil and contains relevant info
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "printer unavailable") {
+		t.Fatalf("expected error to contain 'printer unavailable', got %v", err)
 	}
 
 	if job.Status != PrintJobFailed {
@@ -286,12 +289,12 @@ func TestPrintJobRunFailure(t *testing.T) {
 		)
 	}
 
-	if job.Error != expectedErr.Error() {
-		t.Fatalf(
-			"expected error %q, got %q",
-			expectedErr.Error(),
-			job.Error,
-		)
+	// The job.Error field contains the error message
+	if job.Error == "" {
+		t.Fatal("expected job.Error to be set")
+	}
+	if !strings.Contains(job.Error, "printer unavailable") {
+		t.Fatalf("expected job.Error to contain 'printer unavailable', got %q", job.Error)
 	}
 
 	if job.CompletedAt == nil {

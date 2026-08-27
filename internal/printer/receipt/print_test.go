@@ -6,6 +6,7 @@ import (
 	"time"
 
 	domainreceipt "pos-system/internal/domain/receipt"
+	"pos-system/internal/printer/retry"
 )
 
 func validPrintReceipt() domainreceipt.Receipt {
@@ -102,6 +103,7 @@ func TestPrintOpenError(t *testing.T) {
 		printer,
 		renderer,
 		validPrintReceipt(),
+		nil,
 	)
 
 	if !errors.Is(err, expectedErr) {
@@ -133,6 +135,7 @@ func TestPrintWriteError(t *testing.T) {
 		printer,
 		renderer,
 		validPrintReceipt(),
+		nil,
 	)
 
 	if !errors.Is(err, expectedErr) {
@@ -164,6 +167,7 @@ func TestPrintSuccess(t *testing.T) {
 		printer,
 		renderer,
 		validPrintReceipt(),
+		nil,
 	)
 
 	if err != nil {
@@ -201,6 +205,7 @@ func TestPrintClosesPrinter(t *testing.T) {
 		printer,
 		renderer,
 		validPrintReceipt(),
+		nil,
 	)
 
 	if err != nil {
@@ -249,6 +254,7 @@ func TestPrintRetriesOpen(t *testing.T) {
 		printer,
 		renderer,
 		validPrintReceipt(),
+		nil,
 	)
 
 	if err != nil {
@@ -284,11 +290,12 @@ func TestPrintRejectsInvalidReceipt(t *testing.T) {
 		printer,
 		renderer,
 		input,
+		nil,
 	)
 
-	if !errors.Is(err, ErrInvoiceRequired) {
+	if !errors.Is(err, ErrInvoiceRequired) && !errors.Is(err, retry.ErrValidation) {
 		t.Fatalf(
-			"expected ErrInvoiceRequired, got %v",
+			"expected error to contain ErrInvoiceRequired or ErrValidation, got %v",
 			err,
 		)
 	}

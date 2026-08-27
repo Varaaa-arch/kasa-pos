@@ -13,6 +13,7 @@ import (
 	domainreceipt "pos-system/internal/domain/receipt"
 	"pos-system/internal/printer/logging"
 	printerreceipt "pos-system/internal/printer/receipt"
+	"pos-system/internal/printer/retry"
 	"pos-system/internal/printer/transport"
 )
 
@@ -287,7 +288,7 @@ func (h *Handler) Print(
 	done := make(chan printResult, 1)
 
 	go func() {
-		done <- printResult{err: job.Run(h.Printer, h.Renderer)}
+		done <- printResult{err: job.Run(h.Printer, h.Renderer, h.Logger)}
 	}()
 
 	var err error
@@ -319,7 +320,7 @@ func (h *Handler) Print(
 
 		var validationErr printerreceipt.ValidationError
 
-		if errors.As(err, &validationErr) {
+		if errors.As(err, &validationErr) || errors.Is(err, retry.ErrValidation) {
 			if h.Logger != nil {
 				h.Logger.Printf(
 					"invalid receipt: job_id=%s error=%v",

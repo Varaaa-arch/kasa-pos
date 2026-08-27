@@ -22,6 +22,7 @@ func TestTransactionToReceiptToPrinter(t *testing.T) {
 	err := job.Run(
 		printer,
 		renderer,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("job.Run() error = %v", err)
@@ -100,6 +101,7 @@ func TestTransactionToReceiptValidationFailure(
 	err := job.Run(
 		printer,
 		renderer,
+		nil,
 	)
 
 	if err == nil {
@@ -193,6 +195,7 @@ func TestTransactionToReceiptUsesDomainData(
 	if err := job.Run(
 		printer,
 		renderer,
+		nil,
 	); err != nil {
 		t.Fatalf(
 			"job.Run() error = %v",
