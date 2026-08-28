@@ -200,3 +200,92 @@ The failure injection tests cover the following failure domains:
 - ✅ **Retry Scenarios**: Idempotency, duplicate prevention
 
 These tests ensure the POS system is resilient to common production failures while maintaining data integrity and business continuity.
+
+---
+
+## Double Checkout Test (TASK 5.18)
+
+### Test Overview
+
+The double checkout test (`TestFailure_DoubleCheckout` and `TestFailure_DoubleCheckoutWithPrint`) simulates sending the same checkout request twice to verify the current behavior without idempotency mechanisms.
+
+### Current Behavior (Without Idempotency)
+
+#### Transaction Behavior
+- ✗ **Creates 2 separate transactions** with different transaction IDs
+- ✗ **Uses the same invoice number** for both transactions (data inconsistency)
+- ✗ **Stock is reduced twice** (from 10 to 6 instead of 10 to 8 for single checkout)
+- ✗ **Both transactions show COMPLETED status**
+
+#### Print Behavior
+- ✗ **Print occurs twice** (both print jobs succeed)
+- ✗ **Same print job ID** (due to mock implementation, but in reality would be different)
+- ✗ **Two physical receipts would be printed**
+
+### Test Results
+
+```
+=== DOUBLE CHECKOUT BEHAVIOR ===
+First checkout: TX ID = 5bdf4765-63c2-442c-ba39-1fe4476bc1b6, Invoice = INV-DOUBLE-TEST, Status = COMPLETED
+Second checkout: TX ID = b3134c60-c1a4-483f-bf19-7372835a23b0, Invoice = INV-DOUBLE-TEST, Status = COMPLETED
+Total transactions created: 2
+Final stock: 6 (initial: 10, purchased: 2x2 = 4, expected: 6)
+Transaction IDs are different: true
+Invoice numbers are the same: true
+
+✗ CURRENT BEHAVIOR: 2 transactions created - DUPLICATE!
+✗ CURRENT BEHAVIOR: Stock reduced 2x - from 10 to 6 (should be 8 for single checkout)
+✗ CURRENT BEHAVIOR: Different transaction IDs - this is duplicate transaction!
+✗ CURRENT BEHAVIOR: Same invoice number for different transactions - data inconsistency!
+```
+
+### Issues Identified
+
+1. **Duplicate Transactions**: Same checkout creates multiple transactions
+2. **Inventory Inconsistency**: Stock is reduced multiple times incorrectly
+3. **Data Integrity**: Same invoice number for different transactions
+4. **Duplicate Printing**: Multiple receipts for the same sale
+5. **Financial Impact**: Customer could be charged multiple times (in real payment systems)
+
+### Required Improvements
+
+1. **Idempotency Keys**: Implement unique idempotency keys for each checkout request
+2. **Deduplication**: Check for existing transactions with same idempotency key
+3. **Invoice Uniqueness**: Ensure invoice numbers are unique across transactions
+4. **Print Idempotency**: Prevent duplicate printing for the same transaction
+5. **Payment Idempotency**: Integrate with payment gateway idempotency
+
+### Implementation Plan (Future)
+
+The full idempotency implementation is planned for later stages and should include:
+
+1. **Request-Level Idempotency**:
+   - Generate unique idempotency key for each checkout request
+   - Store idempotency keys with transaction results
+   - Return cached result for duplicate requests
+
+2. **Database Schema Changes**:
+   - Add `idempotency_key` column to transactions table
+   - Add unique constraint on idempotency_key
+   - Add index for fast lookups
+
+3. **API Changes**:
+   - Accept idempotency key in checkout requests
+   - Return existing transaction for duplicate keys
+   - Handle idempotency conflicts gracefully
+
+4. **Print Idempotency**:
+   - Track print job execution per transaction
+   - Prevent duplicate print jobs for same transaction
+   - Link print jobs to transaction idempotency
+
+### Current Status
+
+⚠️ **WARNING**: The system currently does NOT have full idempotency implementation. Double checkouts will create duplicate transactions, reduce stock incorrectly, and print multiple receipts. This needs to be addressed before production deployment.
+
+### Running the Double Checkout Test
+
+```bash
+# Run double checkout tests
+go test -v ./internal/service/checkout -run TestFailure_DoubleCheckout
+```

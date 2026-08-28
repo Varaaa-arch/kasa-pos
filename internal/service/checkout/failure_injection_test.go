@@ -642,6 +642,188 @@ func TestFailure_CascadingFailures(t *testing.T) {
 	})
 }
 
+// TestFailure_DoubleCheckout memverifikasi behavior ketika
+// checkout request yang sama dikirim dua kali (tanpa idempotency).
+//
+// Expected behavior (sebelum idempotency implementation):
+// - Akan muncul 2 transaction terpisah
+// - Stock akan terpotong 2x
+// - Print akan terjadi 2x
+// - Ini menunjukkan need untuk idempotency mechanism
+func TestFailure_DoubleCheckout(t *testing.T) {
+	txRepo := &fakeTransactionRepo{}
+	stockRepo := &serialStockRepo{stock: 10} // Stock awal 10
+	sqliteDB := openSQLiteDB(t)
+
+	atomicSvc := NewAtomicService(sqliteDB, txRepo, stockRepo)
+
+	// Buat cart yang sama
+	c := cart.New()
+	p := domainproduct.Product{
+		ID:    "prod-double",
+		SKU:   "DOUBLE-001",
+		Name:  "Double Checkout Product",
+		Price: 5000,
+		Stock: 10,
+	}
+	if err := c.AddItem(p, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	// Checkout request yang sama
+	request := AtomicRequest{
+		Cart:          c,
+		PaidAmount:    10000,
+		PaymentMethod: "CASH",
+		InvoiceNumber: "INV-DOUBLE-TEST", // Invoice number yang sama
+	}
+
+	// Kirim checkout pertama
+	tx1, err1 := atomicSvc.Execute(context.Background(), request)
+	if err1 != nil {
+		t.Fatalf("first checkout should succeed: %v", err1)
+	}
+
+	// Kirim checkout kedua (sama persis)
+	tx2, err2 := atomicSvc.Execute(context.Background(), request)
+	if err2 != nil {
+		t.Fatalf("second checkout should succeed (no idempotency yet): %v", err2)
+	}
+
+	// RECORD BEHAVIOR
+	t.Logf("=== DOUBLE CHECKOUT BEHAVIOR ===")
+	t.Logf("First checkout: TX ID = %s, Invoice = %s, Status = %s", tx1.ID, tx1.InvoiceNumber, tx1.Status)
+	t.Logf("Second checkout: TX ID = %s, Invoice = %s, Status = %s", tx2.ID, tx2.InvoiceNumber, tx2.Status)
+	t.Logf("Total transactions created: %d", len(txRepo.created))
+	t.Logf("Final stock: %d (initial: 10, purchased: 2x2 = 4, expected: 6)", stockRepo.stock)
+	t.Logf("Transaction IDs are different: %v", tx1.ID != tx2.ID)
+	t.Logf("Invoice numbers are the same: %v", tx1.InvoiceNumber == tx2.InvoiceNumber)
+
+	// VERIFIKASI BEHAVIOR SAAT INI (tanpa idempotency)
+	
+	// 1. Apakah muncul 2 transaction?
+	if len(txRepo.created) != 2 {
+		t.Logf("CURRENT BEHAVIOR: Created %d transactions (expected 2 without idempotency)", len(txRepo.created))
+	} else {
+		t.Logf("✗ CURRENT BEHAVIOR: 2 transactions created - DUPLICATE!")
+	}
+
+	// 2. Apakah stock terpotong 2x?
+	expectedStock := 10 - (2 * 2) // 10 - 4 = 6
+	if stockRepo.stock == expectedStock {
+		t.Logf("✗ CURRENT BEHAVIOR: Stock reduced 2x - from 10 to %d (should be 8 for single checkout)", stockRepo.stock)
+	} else {
+		t.Logf("CURRENT BEHAVIOR: Stock = %d (expected %d for double checkout)", stockRepo.stock, expectedStock)
+	}
+
+	// 3. Apakah transaction ID berbeda?
+	if tx1.ID != tx2.ID {
+		t.Logf("✗ CURRENT BEHAVIOR: Different transaction IDs - this is duplicate transaction!")
+	} else {
+		t.Logf("CURRENT BEHAVIOR: Same transaction ID - idempotency working")
+	}
+
+	// 4. Apakah invoice number sama?
+	if tx1.InvoiceNumber == tx2.InvoiceNumber {
+		t.Logf("✗ CURRENT BEHAVIOR: Same invoice number for different transactions - data inconsistency!")
+	} else {
+		t.Logf("CURRENT BEHAVIOR: Different invoice numbers")
+	}
+
+	// SUMMARY
+	t.Logf("=== SUMMARY ===")
+	t.Logf("Current behavior without idempotency:")
+	t.Logf("- Creates duplicate transactions: %v", len(txRepo.created) == 2)
+	t.Logf("- Reduces stock multiple times: %v", stockRepo.stock == 6)
+	t.Logf("- Creates different transaction IDs: %v", tx1.ID != tx2.ID)
+	t.Logf("- Uses same invoice number: %v", tx1.InvoiceNumber == tx2.InvoiceNumber)
+	t.Logf("")
+	t.Logf("NEED: Implement idempotency mechanism to prevent duplicate checkouts")
+}
+
+// TestFailure_DoubleCheckoutWithPrint memverifikasi behavior print
+// ketika checkout yang sama dikirim dua kali.
+//
+// Expected behavior (sebelum idempotency):
+// - Print akan terjadi 2x
+// - 2 print job yang berbeda
+func TestFailure_DoubleCheckoutWithPrint(t *testing.T) {
+	txRepo := &fakeTransactionRepo{}
+	stockRepo := &serialStockRepo{stock: 5}
+	sqliteDB := openSQLiteDB(t)
+
+	atomicSvc := NewAtomicService(sqliteDB, txRepo, stockRepo)
+
+	// Setup print service dan mock print agent
+	printService := receiptsvc.NewPrintService()
+	printAgent := &failurePrintAgent{
+		shouldFail: false, // Print berhasil
+	}
+
+	orchestrator := NewOrchestratorService(
+		atomicSvc,
+		printService,
+		printAgent,
+		DefaultReceiptDefaults(),
+	)
+
+	// Buat cart yang sama
+	c := cart.New()
+	p := domainproduct.Product{
+		ID:    "prod-double-print",
+		SKU:   "DOUBLE-PRINT-001",
+		Name:  "Double Print Product",
+		Price: 3000,
+		Stock: 5,
+	}
+	if err := c.AddItem(p, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	request := AtomicRequest{
+		Cart:          c,
+		PaidAmount:    3000,
+		PaymentMethod: "CASH",
+		InvoiceNumber: "INV-DOUBLE-PRINT",
+	}
+
+	// Kirim checkout pertama
+	result1, err1 := orchestrator.Execute(context.Background(), request)
+	if err1 != nil {
+		t.Fatalf("first checkout should succeed: %v", err1)
+	}
+
+	// Kirim checkout kedua
+	result2, err2 := orchestrator.Execute(context.Background(), request)
+	if err2 != nil {
+		t.Fatalf("second checkout should succeed: %v", err2)
+	}
+
+	// RECORD BEHAVIOR
+	t.Logf("=== DOUBLE CHECKOUT PRINT BEHAVIOR ===")
+	t.Logf("First print job: ID = %s, Status = %s", result1.PrintJob.ID, result1.PrintJob.Status)
+	t.Logf("Second print job: ID = %s, Status = %s", result2.PrintJob.ID, result2.PrintJob.Status)
+	t.Logf("Print job IDs are different: %v", result1.PrintJob.ID != result2.PrintJob.ID)
+	t.Logf("Both print jobs succeeded: %v", result1.PrintJob.Status == printerreceipt.PrintJobCompleted && result2.PrintJob.Status == printerreceipt.PrintJobCompleted)
+
+	// VERIFIKASI BEHAVIOR SAAT INI
+	
+	// Apakah print 2x?
+	if result1.PrintJob.ID != result2.PrintJob.ID {
+		t.Logf("✗ CURRENT BEHAVIOR: Different print job IDs - print occurred 2x!")
+	} else {
+		t.Logf("CURRENT BEHAVIOR: Same print job ID - print idempotency working")
+	}
+
+	// SUMMARY
+	t.Logf("=== SUMMARY ===")
+	t.Logf("Current behavior without print idempotency:")
+	t.Logf("- Creates duplicate print jobs: %v", result1.PrintJob.ID != result2.PrintJob.ID)
+	t.Logf("- Both print jobs succeed: %v", result1.PrintJob.Status == printerreceipt.PrintJobCompleted && result2.PrintJob.Status == printerreceipt.PrintJobCompleted)
+	t.Logf("")
+	t.Logf("NEED: Implement print idempotency to prevent duplicate printing")
+}
+
 // Helper function untuk sample receipt
 func sampleReceipt() domainreceipt.Receipt {
 	return domainreceipt.Receipt{
