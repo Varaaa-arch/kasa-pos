@@ -1,8 +1,10 @@
-# Architecture Decision Records
+# Architecture Documentation
 
-Dokumen ini mencatat keputusan arsitektur yang sudah dibuat selama development KASA. Setiap ADR bersifat immutable — kalau keputusan berubah, buat ADR baru yang supersede ADR lama.
+Dokumentasi arsitektur KASA POS system mencakup Architecture Decision Records (ADRs) dan overview sistem.
 
----
+## Architecture Decision Records (ADRs)
+
+ADRs mencatat keputusan arsitektur yang sudah dibuat selama development KASA. Setiap ADR bersifat immutable — kalau keputusan berubah, buat ADR baru yang supersede ADR lama.
 
 | ADR | Judul | Status |
 |---|---|---|
@@ -12,8 +14,11 @@ Dokumen ini mencatat keputusan arsitektur yang sudah dibuat selama development K
 | [ADR-004](ADR-004-print-target-interface.md) | PrintTarget Interface — PrintJob tidak boleh tahu Hardware | Accepted |
 | [ADR-005](ADR-005-print-idempotency.md) | Idempotency Key untuk POST /print | Accepted |
 | [ADR-006](ADR-006-api-error-model.md) | API Error Model — Structured JSON Error Response | Accepted |
+| [ADR-007](ADR-007-failure-injection-testing.md) | Failure Injection Testing Strategy | Accepted |
 
----
+## System Documentation
+
+- **[System Overview](system-overview.md)** - Comprehensive system architecture, components, and data flow
 
 ## Format ADR
 
