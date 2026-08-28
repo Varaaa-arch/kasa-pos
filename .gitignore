@@ -28,3 +28,7 @@ bin/
 tmp/
 temp/
 .aider*
+
+# Test Reports
+playwright-report/
+test-results/
