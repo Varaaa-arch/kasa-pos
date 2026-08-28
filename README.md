@@ -396,26 +396,4 @@ migrations/               # SQL migrations
 
 ## Status
 
-🟡 **In development** core checkout, stock, transaksi, dan integrasi Print Agent sudah berjalan. Autentikasi dan fitur lanjutan masih dalam roadmap.
-
-### Completed Features
-- ✅ Atomic checkout with PostgreSQL transactions
-- ✅ Stock management with row-level locking
-- ✅ Print Agent integration with idempotency
-- ✅ ESC/POS receipt rendering
-- ✅ Failure injection testing
-- ✅ Concurrent checkout safety
-- ✅ Full E2E regression testing
-
-### Known Limitations
-- ⚠️ Full idempotency not yet implemented (double checkout can create duplicates)
-- ⚠️ No authentication/authorization
-- ⚠️ Limited error recovery mechanisms
-- ⚠️ No payment gateway integration
-
-### Next Steps
-- 🔜 Implement full request idempotency
-- 🔜 Add authentication and authorization
-- 🔜 Implement retry mechanisms for transient failures
-- 🔜 Add monitoring and alerting
-- 🔜 Payment gateway integration
+✅ **Done V1.0** 
