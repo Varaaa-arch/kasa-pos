@@ -50,7 +50,7 @@ func main() {
 
 	productHandler := api.NewProductHandler(productSvc)
 	checkoutHandler := api.NewCheckoutHandler(orchestratorSvc, productRepo)
-	transactionHandler := api.NewTransactionHandler(transactionSvc)
+	transactionHandler := api.NewTransactionHandler(transactionSvc, orchestratorSvc)
 
 	server := &http.Server{
 		Addr:    ":8080",

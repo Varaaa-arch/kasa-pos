@@ -27,3 +27,4 @@ bin/
 # Temporary
 tmp/
 temp/
+.aider*

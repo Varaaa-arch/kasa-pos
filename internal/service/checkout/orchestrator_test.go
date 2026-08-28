@@ -180,6 +180,63 @@ func TestOrchestratorPrintFailureKeepsTransaction(t *testing.T) {
 	}
 }
 
+func TestOrchestratorReprintUsesDistinctIdempotencyKey(t *testing.T) {
+	printAgent := &mockPrintAgent{
+		resp: agent.PrintResponse{
+			JobID:   "PJ-reprint-001",
+			Message: "receipt printed successfully",
+		},
+	}
+
+	orchestrator := NewOrchestratorService(
+		&stubAtomicService{},
+		receiptsvc.NewPrintService(),
+		printAgent,
+		DefaultReceiptDefaults(),
+	)
+
+	tx := domaintransaction.Transaction{
+		ID:            uuid.NewString(),
+		InvoiceNumber: "INV-REPRINT-001",
+		Status:        domaintransaction.StatusCompleted,
+		CreatedAt:     time.Now().UTC(),
+		Subtotal:      15000,
+		Total:         15000,
+		PaidAmount:    20000,
+		Change:        5000,
+		PaymentMethod: "CASH",
+		Items: []domaintransaction.Item{
+			{
+				ProductID: "prod-003",
+				SKU:       "TEH-001",
+				Name:      "Teh",
+				Quantity:  1,
+				UnitPrice: 15000,
+				Subtotal:  15000,
+			},
+		},
+	}
+
+	reprintKey := "reprint-" + uuid.NewString()
+	result := orchestrator.Reprint(context.Background(), tx, reprintKey)
+
+	if result.PrintJob.Status != printerreceipt.PrintJobCompleted {
+		t.Fatalf("print job status = %q, want COMPLETED", result.PrintJob.Status)
+	}
+
+	if printAgent.calls != 1 {
+		t.Fatalf("print agent calls = %d, want 1", printAgent.calls)
+	}
+
+	if printAgent.lastKey != reprintKey {
+		t.Fatalf("idempotency key = %q, want %q", printAgent.lastKey, reprintKey)
+	}
+
+	if printAgent.lastKey == tx.ID {
+		t.Fatal("reprint must not reuse the checkout transaction id as idempotency key")
+	}
+}
+
 type stubAtomicService struct {
 	executeFn func(context.Context, AtomicRequest) (domaintransaction.Transaction, error)
 }

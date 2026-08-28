@@ -54,6 +54,7 @@ func setupCheckoutIntegrationRouter(
 	checkoutHandler := NewCheckoutHandler(orchestratorSvc, productRepo)
 	transactionHandler := NewTransactionHandler(
 		transactionservice.NewService(transactionRepo),
+		orchestratorSvc,
 	)
 
 	server := httptest.NewServer(

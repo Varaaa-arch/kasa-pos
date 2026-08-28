@@ -44,6 +44,7 @@ func NewRouter(
 	if transactionHandler != nil {
 		mux.HandleFunc("GET /transactions", transactionHandler.List)
 		mux.HandleFunc("GET /transactions/{id}", transactionHandler.GetByID)
+		mux.HandleFunc("POST /transactions/{id}/reprint", transactionHandler.Reprint)
 	}
 
 	return Chain(

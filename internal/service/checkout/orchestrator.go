@@ -92,6 +92,30 @@ func (s *OrchestratorService) Execute(
 		"total", tx.Total,
 	)
 
+	return OrchestratorResult{
+		Transaction: tx,
+		PrintJob:    s.printReceipt(ctx, tx, tx.ID),
+	}, nil
+}
+
+func (s *OrchestratorService) Reprint(
+	ctx context.Context,
+	tx domaintransaction.Transaction,
+	idempotencyKey string,
+) OrchestratorResult {
+	return OrchestratorResult{
+		Transaction: tx,
+		PrintJob:    s.printReceipt(ctx, tx, idempotencyKey),
+	}
+}
+
+func (s *OrchestratorService) printReceipt(
+	ctx context.Context,
+	tx domaintransaction.Transaction,
+	idempotencyKey string,
+) printerreceipt.PrintJob {
+	reqID := applogger.RequestIDFromContext(ctx)
+
 	slog.InfoContext(ctx, applogger.EventPrintStarted,
 		"event", applogger.EventPrintStarted,
 		"request_id", reqID,
@@ -106,14 +130,11 @@ func (s *OrchestratorService) Execute(
 			"transaction_id", tx.ID,
 			"error", err.Error(),
 		)
-		return OrchestratorResult{
-			Transaction: tx,
-			PrintJob: printerreceipt.PrintJob{
-				ID:     "PJ-" + tx.ID,
-				Status: printerreceipt.PrintJobFailed,
-				Error:  err.Error(),
-			},
-		}, nil
+		return printerreceipt.PrintJob{
+			ID:     "PJ-" + tx.ID,
+			Status: printerreceipt.PrintJobFailed,
+			Error:  err.Error(),
+		}
 	}
 
 	receipt := enrichReceipt(job.Receipt, s.defaults)
@@ -126,13 +147,10 @@ func (s *OrchestratorService) Execute(
 			"error", err.Error(),
 		)
 		_ = job.Fail(err)
-		return OrchestratorResult{
-			Transaction: tx,
-			PrintJob:    job,
-		}, nil
+		return job
 	}
 
-	printResp, err := s.printAgent.Print(ctx, receipt, tx.ID)
+	printResp, err := s.printAgent.Print(ctx, receipt, idempotencyKey)
 	if err != nil {
 		slog.ErrorContext(ctx, applogger.EventPrintFailed,
 			"event", applogger.EventPrintFailed,
@@ -142,10 +160,7 @@ func (s *OrchestratorService) Execute(
 			"error", err.Error(),
 		)
 		_ = job.Fail(err)
-		return OrchestratorResult{
-			Transaction: tx,
-			PrintJob:    job,
-		}, nil
+		return job
 	}
 
 	if printResp.JobID != "" {
@@ -160,6 +175,7 @@ func (s *OrchestratorService) Execute(
 			"error", err.Error(),
 		)
 		_ = job.Fail(err)
+		return job
 	}
 
 	slog.InfoContext(ctx, applogger.EventPrintCompleted,
@@ -169,10 +185,7 @@ func (s *OrchestratorService) Execute(
 		"print_job_id", job.ID,
 	)
 
-	return OrchestratorResult{
-		Transaction: tx,
-		PrintJob:    job,
-	}, nil
+	return job
 }
 
 func enrichReceipt(

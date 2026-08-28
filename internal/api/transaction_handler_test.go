@@ -46,7 +46,7 @@ func (f *fakeTransactionRepo) List(ctx context.Context) ([]domaintransaction.Tra
 
 func newTestTransactionHandler(repo domaintransaction.Repository) *TransactionHandler {
 	svc := transactionservice.NewService(repo)
-	return NewTransactionHandler(svc)
+	return NewTransactionHandler(svc, nil)
 }
 
 func TestTransactionHandler_List_Success(t *testing.T) {
@@ -198,4 +198,20 @@ func TestTransactionHandler_GetByID_InternalError(t *testing.T) {
 	}
 
 	assertErrorCode(t, rec, ErrCodeInternal)
+}
+
+func TestTransactionHandler_Reprint_NotFound(t *testing.T) {
+	h := newTestTransactionHandler(&fakeTransactionRepo{})
+	router := NewRouter(nil, h, nil, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/transactions/missing/reprint", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", rec.Code)
+	}
+
+	assertErrorCode(t, rec, ErrCodeTransactionNotFound)
 }

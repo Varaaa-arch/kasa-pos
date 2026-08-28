@@ -131,7 +131,7 @@ func setupSmokeRouter() (http.Handler, *smokeProductRepo, *smokeTransactionRepo)
 	txSvc := transactionservice.NewService(txRepo)
 
 	prodHandler := NewProductHandler(prodSvc)
-	txHandler := NewTransactionHandler(txSvc)
+	txHandler := NewTransactionHandler(txSvc, nil)
 
 	router := NewRouter(prodHandler, txHandler, nil, nil)
 	return router, prodRepo, txRepo
