@@ -7,3 +7,7 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ProductId = Product['id'];
+export type ProductSku = Product['sku'];
+export type ProductStock = Product['stock'];

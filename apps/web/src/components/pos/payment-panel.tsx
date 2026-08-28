@@ -25,9 +25,9 @@ export function PaymentPanel({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
-        <Label htmlFor="paid-amount" className="mb-1.5 block text-sm font-medium">
+        <Label htmlFor="paid-amount" className="mb-1.5 block text-sm font-medium text-foreground">
           Bayar
         </Label>
         <Input
@@ -38,23 +38,23 @@ export function PaymentPanel({
           value={paidAmount > 0 ? paidAmount.toString() : ""}
           onChange={(e) => handleChange(e.target.value)}
           disabled={disabled}
-          className="text-lg font-semibold tabular-nums"
+          className="text-lg font-semibold tabular-nums transition-all duration-200 focus:ring-2 focus:ring-primary/20"
           aria-describedby="change-amount"
         />
       </div>
 
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Kembali</span>
+      <div className="flex items-center justify-between text-sm p-3 rounded-lg bg-muted/50">
+        <span className="text-muted-foreground font-medium">Kembali</span>
         <span
           id="change-amount"
-          className="font-semibold tabular-nums"
+          className="font-semibold tabular-nums text-foreground"
         >
           {formatIDR(change > 0 ? change : 0)}
         </span>
       </div>
 
       {insufficient && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animate-slide-up">
           <AlertDescription>Pembayaran kurang</AlertDescription>
         </Alert>
       )}

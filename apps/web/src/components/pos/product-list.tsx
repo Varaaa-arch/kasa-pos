@@ -33,10 +33,10 @@ export function ProductList({
   });
 
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Produk</h2>
-        <span className="text-sm text-muted-foreground">
+    <div className="flex h-full flex-col gap-4 animate-fade-in">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-lg font-semibold text-foreground">Produk</h2>
+        <span className="text-sm text-muted-foreground font-medium">
           {filtered.length} item
         </span>
       </div>
@@ -44,30 +44,38 @@ export function ProductList({
       <ProductSearch value={search} onChange={onSearchChange} />
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animate-slide-up">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Memuat produk...
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <span>Memuat produk...</span>
+          </div>
         </div>
       ) : (
-        <ScrollArea className="flex-1 pr-2">
+        <ScrollArea className="flex-1 pr-2 scrollbar-modern">
           {filtered.length === 0 ? (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               Produk tidak ditemukan
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 pb-2 xl:grid-cols-3">
-              {filtered.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  cartQuantity={cartQuantityByProduct(product.id)}
-                  onAdd={onAddProduct}
-                />
+            <div className="grid grid-cols-2 gap-4 pb-2 xl:grid-cols-3">
+              {filtered.map((product, index) => (
+                <div 
+                  key={product.id} 
+                  className="animate-scale-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <ProductCard
+                    product={product}
+                    cartQuantity={cartQuantityByProduct(product.id)}
+                    onAdd={onAddProduct}
+                  />
+                </div>
               ))}
             </div>
           )}

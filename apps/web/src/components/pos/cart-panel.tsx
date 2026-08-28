@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface CartPanelProps {
   items: CartItem[];
@@ -45,21 +46,21 @@ export function CartPanel({
     items.length > 0 && paidAmount >= total && total > 0 && !isCheckingOut;
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Keranjang</h2>
-        <span className="text-sm text-muted-foreground">{items.length} item</span>
+    <div className="flex h-full flex-col gap-4 animate-fade-in">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-lg font-semibold text-foreground">Keranjang</h2>
+        <span className="text-sm text-muted-foreground font-medium">{items.length} item</span>
       </div>
 
       {checkoutResult && <CheckoutResult result={checkoutResult} />}
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-1 scrollbar-modern">
         {items.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
             Keranjang kosong
           </div>
         ) : (
-          <div>
+          <div className="space-y-2">
             {items.map((item) => {
               const product = productsById.get(item.product.id) ?? item.product;
               return (
@@ -77,7 +78,7 @@ export function CartPanel({
         )}
       </ScrollArea>
 
-      <Separator />
+      <Separator className="bg-border/50" />
 
       <CartSummary subtotal={subtotal} total={total} />
 
@@ -89,7 +90,7 @@ export function CartPanel({
       />
 
       {checkoutError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="animate-slide-up">
           <AlertDescription>{checkoutError}</AlertDescription>
         </Alert>
       )}
@@ -97,7 +98,12 @@ export function CartPanel({
       <Button
         type="button"
         size="lg"
-        className="h-12 w-full text-base font-bold"
+        className={cn(
+          "h-12 w-full text-base font-bold btn-glow",
+          "transition-all duration-300 ease-out",
+          canCheckout && "hover:shadow-glow hover:-translate-y-0.5",
+          !canCheckout && "opacity-50 cursor-not-allowed"
+        )}
         onClick={onCheckout}
         disabled={!canCheckout}
       >

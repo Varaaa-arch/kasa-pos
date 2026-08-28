@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartPanel } from "@/components/pos/cart-panel";
 import { ProductList } from "@/components/pos/product-list";
 import { useCart } from "@/hooks/use-cart";
-import { ApiError, checkout, getProducts } from "@/lib/api";
+import { ApiError, processCheckout, fetchProducts } from "@/lib/api";
 import type { CheckoutResponse } from "@/types/checkout";
 import type { Product } from "@/types/product";
 import { Separator } from "@/components/ui/separator";
@@ -43,7 +43,7 @@ export function PosScreen() {
     setProductError(null);
 
     try {
-      const data = await getProducts();
+      const data = await fetchProducts();
       setProducts(data);
     } catch (error) {
       const message =
@@ -61,7 +61,7 @@ export function PosScreen() {
       setProductError(null);
 
       try {
-        const data = await getProducts();
+        const data = await fetchProducts();
         if (!cancelled) {
           setProducts(data);
         }
@@ -111,7 +111,7 @@ export function PosScreen() {
     setCheckoutResult(null);
 
     try {
-      const response = await checkout({
+      const response = await processCheckout({
         items: items.map((item) => ({
           product_id: item.product.id,
           sku: item.product.sku,
@@ -140,14 +140,19 @@ export function PosScreen() {
   }, [items, paidAmount, total, clearCart, loadProducts]);
 
   return (
-    <div className="flex h-screen flex-col bg-muted/30">
-      <header className="flex items-center justify-between border-b bg-background px-6 py-3">
-        <h1 className="text-xl font-bold tracking-tight">KASA POS</h1>
-        <span className="text-sm font-medium text-muted-foreground">CASHIER</span>
+    <div className="flex h-screen flex-col bg-linear-to-br from-background via-background to-muted/20">
+      <header className="flex items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-6 py-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <span className="text-lg font-bold text-primary">K</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight gradient-text">KASA POS</h1>
+        </div>
+        <span className="text-sm font-medium text-muted-foreground px-3 py-1 rounded-full bg-muted/50">CASHIER</span>
       </header>
 
       <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px]">
-        <section className="min-h-0 border-r bg-background p-4 lg:p-6">
+        <section className="min-h-0 border-r border-border/50 bg-background/50 backdrop-blur-sm p-4 lg:p-6">
           <ProductList
             products={products}
             search={search}
@@ -161,7 +166,7 @@ export function PosScreen() {
 
         <Separator className="lg:hidden" />
 
-        <section className="flex min-h-0 flex-col bg-background p-4 lg:p-6">
+        <section className="flex min-h-0 flex-col bg-background/80 backdrop-blur-md p-4 lg:p-6">
           <CartPanel
             items={items}
             productsById={productsById}

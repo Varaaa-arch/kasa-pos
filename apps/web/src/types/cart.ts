@@ -6,3 +6,7 @@ export interface CartItem {
   unitPrice: number;
   subtotal: number;
 }
+
+export type CartItemId = CartItem['product']['id'];
+export type CartQuantity = CartItem['quantity'];
+export type CartSubtotal = CartItem['subtotal'];

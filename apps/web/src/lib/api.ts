@@ -54,7 +54,7 @@ function mapErrorMessage(status: number, body: string): string {
   return "Terjadi kesalahan";
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function fetchProducts(): Promise<Product[]> {
   if (!API_BASE_URL) {
     throw new ApiError("Server tidak tersedia", 0);
   }
@@ -67,7 +67,7 @@ export async function getProducts(): Promise<Product[]> {
   return handleResponse<Product[]>(response);
 }
 
-export async function checkout(request: CheckoutRequest): Promise<CheckoutResponse> {
+export async function processCheckout(request: CheckoutRequest): Promise<CheckoutResponse> {
   if (!API_BASE_URL) {
     throw new ApiError("Server tidak tersedia", 0);
   }

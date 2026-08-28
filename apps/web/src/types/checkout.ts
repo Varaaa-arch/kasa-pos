@@ -37,3 +37,8 @@ export interface CheckoutResponse {
   created_at: string;
   print_job?: CheckoutPrintJob;
 }
+
+export type CheckoutId = CheckoutResponse['id'];
+export type InvoiceNumber = CheckoutResponse['invoice_number'];
+export type PaymentMethod = CheckoutRequest['payment_method'];
+export type CheckoutStatus = CheckoutResponse['status'];
